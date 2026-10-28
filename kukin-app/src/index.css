@@ -1,15 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", sans-serif;
-  --font-display: "Fraunces", serif;
-  --color-kukin-green: #2D7A47;
-  --color-kukin-green-light: #4CAF6B;
-  --color-kukin-amber: #F5A623;
-  --color-kukin-red: #E84B2D;
-  --color-kukin-cream: #FDF8F0;
-  --color-kukin-earth: #8B6F47;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Fraunces', serif;
 }
 
 body {
@@ -18,10 +12,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Animaciones Fluidas Impecables */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
 }
