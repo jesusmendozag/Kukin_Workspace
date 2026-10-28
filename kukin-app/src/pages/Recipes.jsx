@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
 import { IconClock } from '../components/Icons';
+import { traducirPalabra } from '../services/translator';
 
 function Recipes() {
   const [suggestions, setSuggestions] = useState([]);
@@ -12,146 +12,69 @@ function Recipes() {
     const fetchSpoonacularRecipes = async () => {
       try {
         const SPOONACULAR_API_KEY = '26be8efc306049ac8ceb0be40a18a38e'; 
-        
-        // Usamos fetch nativo para evitar conflictos con tu api.js (Axios)
-        const url = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&includeIngredients=egg,tomato&addRecipeInformation=true&fillIngredients=true&number=2`;
+        const url = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&includeIngredients=egg,tomato&addRecipeInformation=true&fillIngredients=true&number=4`;
         
         const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular rechazó la petición (Código: ${response.status})`);
-        }
-        
         const data = await response.json();
 
-        // Mapeamos el JSON al formato de tus tarjetas de React
-        const kukinFormattedRecipes = data.results.map(recipe => {
-          const totalIngredients = recipe.extendedIngredients?.length || 1;
-          const missed = recipe.missedIngredientCount || 0;
-          const matchPct = Math.round(((totalIngredients - missed) / totalIngredients) * 100);
+        const format = data.results.map(recipe => ({
+          id: recipe.id,
+          title: recipe.title.replace('Egg', 'Huevo').replace('Tomato', 'Jitomate'), // Simple regex para títulos
+          image: recipe.image,
+          time: recipe.readyInMinutes || 30,
+          match: Math.round(((recipe.extendedIngredients.length - recipe.missedIngredientCount) / recipe.extendedIngredients.length) * 100),
+          diets: recipe.diets ? recipe.diets.slice(0, 2).map(traducirPalabra) : [],
+          missing: recipe.missedIngredients?.map(ing => traducirPalabra(ing.name)) || []
+        }));
 
-          return {
-            idRecipe: recipe.id,
-            titleRecipe: recipe.title,
-            urlImage: recipe.image,
-            timePreparation: recipe.readyInMinutes || 30,
-            matchPercentage: matchPct > 0 ? matchPct : 65,
-            diets: recipe.diets ? recipe.diets.slice(0, 3) : [],
-            missingIngredients: recipe.missedIngredients?.map(ing => ({
-              idIngredient: ing.id,
-              ingredientName: ing.name
-            })) || []
-          };
-        });
-
-        setSuggestions(kukinFormattedRecipes);
+        setSuggestions(format);
       } catch (error) {
-        console.error('Error al conectar con Spoonacular:', error);
-        alert('Error al cargar recetas: ' + error.message);
+        console.error(error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchSpoonacularRecipes();
   }, []);
 
   return (
-    <div className="w-full h-full pt-8 md:pt-12 px-6 md:px-0">
-      
-      {/* 🏷️ HEADER RESPONSIVO */}
-      <div className="mb-8 md:mb-12">
-        <p className="text-xs md:text-sm font-bold text-gray-400 uppercase tracking-widest mb-1 md:mb-3">
-          Sugerencias Inteligentes
-        </p>
-        <h1 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight" style={{ fontFamily: "Fraunces, serif" }}>
-          Recetas para ti
-        </h1>
+    <div className="w-full px-6 pt-12 animate-fade-in-up">
+      <div className="mb-8">
+        <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: "Fraunces, serif" }}>Recetas</h1>
       </div>
 
-      {/* 🗂️ FILTROS (Visuales por ahora) */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-6 mb-2">
-        {["Todas", "Rápidas", "Sin faltantes", "Mexicanas"].map((filter, i) => (
-          <button key={filter} className="whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold transition-colors border"
-            style={{
-              background: i === 0 ? "#2D7A47" : "transparent",
-              color: i === 0 ? "white" : "#6B7280",
-              borderColor: i === 0 ? "#2D7A47" : "#E5E7EB"
-            }}>
-            {filter}
-          </button>
-        ))}
-      </div>
-
-      {/* 🍱 GRID DE RECETAS */}
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-4 border-green-200 border-t-green-700 rounded-full animate-spin"></div>
-        </div>
-      ) : suggestions.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
-          <p className="text-lg text-gray-500" style={{ fontFamily: "Fraunces, serif" }}>
-            No encontramos recetas con tu inventario actual.
-          </p>
-          <p className="text-sm text-gray-400 mt-2">Agrega más ingredientes a tu alacena.</p>
+        <div className="space-y-6">
+          {[1, 2].map(i => <div key={i} className="w-full h-72 bg-gray-200 rounded-[32px] animate-pulse" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {suggestions.map((recipe) => (
-            <div key={recipe.idRecipe} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 group hover:shadow-md transition-all flex flex-col">
-              
-              {/* Imagen y Badges */}
-              <div className="relative h-48 md:h-56 bg-gray-200 overflow-hidden">
-                {recipe.urlImage ? (
-                  <img src={recipe.urlImage} alt={recipe.titleRecipe} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">Sin imagen</div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                
-                {/* Porcentaje de coincidencia */}
-                <div className="absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-black text-white backdrop-blur-md shadow-sm"
-                  style={{ background: recipe.matchPercentage >= 100 ? "#2D7A47" : "#F5A623" }}>
-                  {recipe.matchPercentage}% coincide
+        <div className="space-y-6">
+          {suggestions.map((recipe, index) => (
+            <div 
+              key={recipe.id} 
+              onClick={() => navigate(`/recipe/${recipe.id}`)} 
+              className="bg-white rounded-[32px] overflow-hidden shadow-xl shadow-gray-200/50 active:scale-95 transition-all cursor-pointer animate-fade-in-up"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="relative w-full h-56 bg-gray-200">
+                <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
+                <div className="absolute top-4 right-4 px-4 py-2 bg-white/90 backdrop-blur-md text-gray-900 font-black text-xs rounded-full">
+                  {recipe.match}% Alacena
                 </div>
               </div>
 
-              {/* Información */}
-              <div className="p-5 md:p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-bold text-gray-900 mb-2 leading-tight" style={{ fontFamily: "Fraunces, serif" }}>
-                  {recipe.titleRecipe}
-                </h3>
+              <div className="p-6">
+                <h3 className="text-2xl font-black text-gray-900 mb-4 leading-tight" style={{ fontFamily: "Fraunces, serif" }}>{recipe.title}</h3>
                 
-                <div className="flex items-center gap-4 text-xs font-medium text-gray-500 mb-4">
-                  <span className="flex items-center gap-1.5"><IconClock/> {recipe.timePreparation} min</span>
-                </div>
-
-                {/* Ingredientes faltantes */}
-                {recipe.missingIngredients && recipe.missingIngredients.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Te falta comprar:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {recipe.missingIngredients.map((missing) => (
-                        <span key={missing.idIngredient} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-red-50 text-red-700 border border-red-100">
-                          {missing.ingredientName}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Dietas */}
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
-                  <div className="flex gap-1.5">
-                    {recipe.diets && recipe.diets.map((diet) => (
-                      <span key={diet} className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700">
-                        {diet}
-                      </span>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex gap-2">
+                    {recipe.diets.map((diet, idx) => (
+                      <span key={idx} className="text-[10px] font-black uppercase tracking-wide text-[#2D7A47] bg-[#DCFCE7] px-3 py-1.5 rounded-full">{diet}</span>
                     ))}
                   </div>
-                  <button className="text-xs font-bold text-white px-5 py-2.5 rounded-xl transition-colors hover:bg-green-800" style={{ background: "#2D7A47" }}>
-                    Ver receta
-                  </button>
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-gray-400">
+                    <IconClock/> {recipe.time} min
+                  </span>
                 </div>
               </div>
             </div>

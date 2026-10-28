@@ -4,26 +4,24 @@ import { useNavigate } from 'react-router-dom';
 function Profile() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
-  };
-
   return (
-    <div className="w-full h-full pt-8 md:pt-12 px-6 md:px-0 max-w-2xl mx-auto">
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 text-center mb-6">
-        <div className="w-24 h-24 rounded-full bg-green-100 border-4 border-white shadow-lg mx-auto flex items-center justify-center text-green-700 font-black text-3xl mb-4" style={{ fontFamily: "Fraunces, serif" }}>
-          U
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "Fraunces, serif" }}>Tu Cuenta</h2>
-        <p className="text-sm text-gray-400 mt-1">Configuración y Preferencias</p>
+    <div className="w-full px-6 pt-12 animate-fade-in-up">
+      <div className="mb-12">
+        <h1 className="text-5xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: "Fraunces, serif" }}>Perfil</h1>
       </div>
 
-      <div className="bg-white rounded-3xl p-2 shadow-sm border border-gray-100">
-        <button onClick={handleLogout} className="w-full p-4 text-center text-red-600 font-bold text-sm rounded-2xl hover:bg-red-50 transition-colors">
-          Cerrar Sesión
-        </button>
+      <div className="bg-white rounded-[40px] p-8 shadow-xl shadow-gray-200/50 flex flex-col items-center text-center mb-8">
+        <div className="w-28 h-28 bg-gradient-to-br from-[#2D7A47] to-[#4CAF6B] text-white flex items-center justify-center font-black text-5xl rounded-[32px] mb-6 shadow-lg rotate-3" style={{ fontFamily: "Fraunces, serif" }}>
+          J
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 tracking-tight" style={{ fontFamily: "Fraunces, serif" }}>Jesús Mendoza Gómez</h2>
+        <p className="text-base font-bold text-gray-400 mt-1 bg-gray-50 px-4 py-1.5 rounded-full inline-block">Ingeniero de Software</p>
       </div>
+
+      <button onClick={() => { localStorage.removeItem('token'); navigate('/'); }} 
+        className="w-full py-6 bg-[#FEE2E2] text-[#991B1B] font-black text-lg rounded-[32px] active:scale-95 transition-transform shadow-sm">
+        Cerrar Sesión
+      </button>
     </div>
   );
 }
