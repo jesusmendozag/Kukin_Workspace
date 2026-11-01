@@ -13,4 +13,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     @Query("SELECT DISTINCT r FROM Recipe r JOIN r.diets d LEFT JOIN FETCH r.ingredients ri LEFT JOIN FETCH ri.ingredient WHERE LOWER(d.name) = LOWER(:dietName)")
     List<Recipe> findByDietNameWithIngredients(@Param("dietName") String dietName);
+
+    // Verifica si la receta de Spoonacular ya está guardada en nuestra MySQL
+    boolean existsByExternalId(String externalId);
 }

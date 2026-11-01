@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { IconFire, IconDumbbell, IconHeart, IconMoon } from '../components/Icons';
 
 const dietGoals = [
@@ -9,35 +9,64 @@ const dietGoals = [
 ];
 
 function Diets() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState("");
+
+  const handleActivar = (planName) => {
+    setSelectedPlan(planName);
+    setModalOpen(true);
+  };
+
   return (
-    <div className="w-full px-6 md:px-12 pt-8 md:pt-4">
-      <div className="mb-16">
-        <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter mb-4" style={{ fontFamily: "Fraunces, serif" }}>
+    <div className="w-full px-6 pt-12 animate-fade-in-up relative">
+      <div className="mb-10">
+        <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: "Fraunces, serif" }}>
           Dietas
         </h1>
-        <p className="text-lg text-gray-500">Selecciona tu objetivo y ruta</p>
+        <p className="text-base font-bold text-gray-500">Selecciona tu objetivo y ruta</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {dietGoals.map((g) => (
-          <div key={g.title} className="bg-white p-8 md:p-12 flex flex-col justify-between">
-            <div className="mb-12">
-              <div className="w-16 h-16 flex items-center justify-center rounded-full mb-6" style={{ background: g.bg, color: g.color }}>
+          <div key={g.title} className="bg-white p-8 rounded-[36px] shadow-sm flex flex-col justify-between border border-gray-50">
+            <div className="mb-8">
+              <div className="w-16 h-16 flex items-center justify-center rounded-[20px] mb-6 shadow-inner" style={{ background: g.bg, color: g.color }}>
                 {g.icon}
               </div>
               <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight" style={{ fontFamily: "Fraunces, serif" }}>{g.title}</h3>
-              <p className="text-lg text-gray-500 leading-snug">{g.desc}</p>
+              <p className="text-sm font-bold text-gray-500 leading-snug">{g.desc}</p>
             </div>
             
             <div className="flex items-center justify-between border-t border-gray-100 pt-6">
-              <span className="text-base font-bold text-gray-900">{g.kcal} / día</span>
-              <button className="text-sm font-bold px-6 py-3 rounded-full text-white" style={{ background: g.color }}>
+              <span className="text-sm font-black text-gray-900">{g.kcal} / día</span>
+              <button 
+                onClick={() => handleActivar(g.title)}
+                className="text-sm font-black px-6 py-3 rounded-full text-white active:scale-90 transition-transform shadow-md" 
+                style={{ background: g.color }}
+              >
                 Activar
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Modal / Ventana Emergente */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fade-in-up">
+          <div className="bg-white rounded-[36px] p-8 w-full max-w-sm text-center shadow-2xl">
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2" style={{ fontFamily: "Fraunces, serif" }}>¡Plan Activado!</h2>
+            <p className="text-sm text-gray-500 font-bold mb-8">Tu dieta "{selectedPlan}" ha sido configurada. Las sugerencias de recetas se ajustarán a tu objetivo.</p>
+            <button 
+              onClick={() => setModalOpen(false)}
+              className="w-full py-4 bg-gray-900 text-white font-black rounded-full active:scale-95 transition-transform"
+            >
+              ¡Entendido!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

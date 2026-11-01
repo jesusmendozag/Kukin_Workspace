@@ -1,7 +1,5 @@
 # Kukin - Smart Pantry & Recipe Generator
 
-![Kukin Banner]([Enlace_a_una_imagen_alargada_de_tu_app_o_logo])
-
 ## Visión General
 Kukin es una aplicación móvil diseñada principalmente para un proyecto final escolar, también para poder resolver la indecisión a la hora de saber que cocinar en el día a día y a su vez poder disminuir el desperdicio de comida. Esto se logrará por Mediante la gestión inteligente del inventario del hogar, la aplicación cruza los ingredientes disponibles en la alacena y refrigerador con una extensa base de datos para sugerir recetas viables, eliminando la necesidad de compras innecesarias.
 
@@ -31,20 +29,6 @@ El proyecto sigue una arquitectura cliente-servidor, separando la lógica de pre
 
 ### Modelado de Datos (ERD)
 La base de datos está diseñada para evitar redundancias y garantizar búsquedas rápidas.
-
-![Diagrama ERD de Kukin]([Sube_aquí_tu_archivo_DB_Kukin.drawio.png_y_pega_el_enlace])
-
----
-
-## Instalación y Configuración Local
-
-Si deseas correr este proyecto de manera local para evaluación técnica, sigue estos pasos:
-
-### Prerrequisitos
-* Node.js (v16 o superior)
-* Expo CLI
-* Java (JDK 17+) y Maven/Gradle
-* MySQL Server
 
 ## Propiedad intelectual y Licencias 
 **Copyright (c) 2026 Jesus Mendoza Gomez. Todos los derechos reservados.**

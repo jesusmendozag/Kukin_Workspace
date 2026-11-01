@@ -6,6 +6,7 @@ backend-core/target/
 *.ear
 *.log
 .mvn/
+settings.json
 
 # (Opcional) Si decides crear un archivo solo para tus contraseñas locales
 application.properties

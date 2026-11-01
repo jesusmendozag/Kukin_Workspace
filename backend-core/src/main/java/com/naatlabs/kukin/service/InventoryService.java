@@ -89,4 +89,21 @@ public class InventoryService {
                 item.getDateRegistration()
         )).collect(Collectors.toList());
     }
+
+    @Transactional
+    public void removeIngredient(String email, Long idIngredient) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Buscamos el inventario completo del usuario
+        List<Inventory> userInventory = inventoryRepository.findByUserIdUserOrderByExpirationDateAsc(user.getIdUser());
+
+        // Buscamos el ingrediente específico y lo borramos
+        for (Inventory item : userInventory) {
+            if (item.getIngredient().getIdIngredient().equals(idIngredient)) {
+                inventoryRepository.delete(item);
+                break; // Terminamos una vez que se elimina
+            }
+        }
+    }
 }
