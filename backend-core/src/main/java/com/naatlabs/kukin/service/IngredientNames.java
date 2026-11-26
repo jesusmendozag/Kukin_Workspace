@@ -45,6 +45,8 @@ public final class IngredientNames {
     public static String clean(String raw) {
         if (raw == null) return null;
         String noTags = TAGS.matcher(raw).replaceAll(" ").replace("&quot;", "").replace("\"", "")
+                // Apóstrofo codificado o posesivo del inglés que dejó la traducción: "Queso de cabra%27s"
+                .replace("%27", "'").replace("&#39;", "'").replaceAll("'s\\b", "").replace("'", "")
                 .replaceAll("\\s+", " ").trim();
         String s = noTags;
         // Lo que va después de una coma suele ser preparación: "cebolla, picada"

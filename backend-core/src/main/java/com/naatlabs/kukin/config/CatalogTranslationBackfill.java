@@ -7,6 +7,8 @@ import com.naatlabs.kukin.entity.RecipeIngredient;
 import com.naatlabs.kukin.repository.IngredientRepository;
 import com.naatlabs.kukin.repository.RecipeRepository;
 import com.naatlabs.kukin.service.IngredientNames;
+import com.naatlabs.kukin.service.RecipeImportService;
+import com.naatlabs.kukin.service.SpoonacularClient;
 import com.naatlabs.kukin.service.TranslationService;
 import com.naatlabs.kukin.service.UnitConverter;
 import jakarta.persistence.EntityManager;
@@ -48,15 +50,24 @@ public class CatalogTranslationBackfill {
     private final IngredientRepository ingredientRepository;
     private final RecipeRepository recipeRepository;
     private final TranslationService translator;
+    private final SpoonacularClient spoonacular;
+
+    /** Pasos de relleno que guardaban las versiones anteriores cuando una receta no traía instrucciones. */
+    private static final String OLD_PLACEHOLDER = "Reúne todos los ingredientes.";
+    /** Palabras muy comunes en recetas en inglés: si aparecen varias, el texto no se tradujo. */
+    private static final java.util.regex.Pattern ENGLISH = java.util.regex.Pattern.compile(
+            "\\b(the|and|with|into|until|bowl|add|mix|minutes|heat|serve|salad|stir|place)\\b",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
 
     @PersistenceContext
     private EntityManager em;
 
     public CatalogTranslationBackfill(IngredientRepository ingredientRepository, RecipeRepository recipeRepository,
-                                      TranslationService translator) {
+                                      TranslationService translator, SpoonacularClient spoonacular) {
         this.ingredientRepository = ingredientRepository;
         this.recipeRepository = recipeRepository;
         this.translator = translator;
+        this.spoonacular = spoonacular;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -81,6 +92,14 @@ public class CatalogTranslationBackfill {
     /** Traducción, español de México y limpieza de cada nombre. */
     private int fixIngredientNames() {
         List<Ingredient> all = ingredientRepository.findAll();
+
+        // Algunos datos viejos guardaron el nombre en español también como "inglés" ("pechuga de pollo"),
+        // y la búsqueda en Spoonacular usa ese campo: se traduce al inglés ("chicken breast")
+        for (Ingredient i : all) {
+            if (i.getNameEn() == null || i.getNameEs() == null || !i.getNameEn().trim().equalsIgnoreCase(i.getNameEs().trim())) continue;
+            String en = translator.toEnglish(i.getNameEs());
+            if (en != null && !en.equalsIgnoreCase(i.getNameEs().trim())) i.setNameEn(truncate(en, 120));
+        }
 
         List<Ingredient> english = all.stream()
                 .filter(i -> i.getNameEn() != null && i.getNameEs() != null
@@ -107,8 +126,19 @@ public class CatalogTranslationBackfill {
         List<Recipe> changed = new ArrayList<>();
         for (Recipe r : recipeRepository.findAll()) {
             if (r.getSource() != Recipe.SourceType.SPOONACULAR) continue;
-            String title = translator.mexicanize(r.getTitleRecipe());
-            String steps = translator.mexicanize(r.getInstructions());
+            String title = r.getTitleRecipe();
+            String steps = r.getInstructions() == null ? "" : r.getInstructions();
+
+            // Pasos de relleno: se piden los pasos reales a Spoonacular (si no hay, se deja sin pasos)
+            if (steps.startsWith(OLD_PLACEHOLDER)) {
+                steps = realSteps(r);
+            } else if (looksEnglish(steps)) {
+                // Si los pasos quedaron en inglés, el título también: se traducen los dos
+                steps = String.join("\n", translator.translateAll(List.of(steps.split("\\r?\\n"))));
+                title = translator.translate(title);
+            }
+            title = translator.mexicanize(title);
+            steps = translator.mexicanize(steps);
             if (!Objects.equals(title, r.getTitleRecipe()) || !Objects.equals(steps, r.getInstructions())) {
                 r.setTitleRecipe(truncate(title, 150));
                 r.setInstructions(steps);
@@ -117,6 +147,26 @@ public class CatalogTranslationBackfill {
         }
         recipeRepository.saveAll(changed);
         return changed.size();
+    }
+
+    private static boolean looksEnglish(String text) {
+        if (text == null || text.isBlank()) return false;
+        var m = ENGLISH.matcher(text);
+        int hits = 0;
+        while (m.find() && hits < 2) hits++;
+        return hits >= 2;
+    }
+
+    private String realSteps(Recipe r) {
+        try {
+            var info = spoonacular.getRecipeInformation(Long.parseLong(r.getExternalId()));
+            if (info.isEmpty()) return r.getInstructions(); // sin API key o sin conexión: se intenta en el próximo arranque
+            List<String> en = RecipeImportService.stepsEnOf(info.get());
+            if (en.isEmpty()) return RecipeImportService.NO_STEPS;
+            return String.join("\n", translator.translateAll(en).stream().filter(s -> !s.isBlank()).toList());
+        } catch (NumberFormatException e) {
+            return RecipeImportService.NO_STEPS;
+        }
     }
 
     /** Junta los ingredientes con el mismo nombre (sin acentos y en singular). */

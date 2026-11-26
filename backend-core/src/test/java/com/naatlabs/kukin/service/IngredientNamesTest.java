@@ -22,6 +22,7 @@ class IngredientNamesTest {
             "SETAS BELLA BABY|Setas bella baby",
             "Queso Oaxaca|Queso Oaxaca",
             "cilantro al gusto|Cilantro",
+            "Queso de cabra%27s|Queso de cabra",
     })
     void clean(String raw, String expected) {
         assertThat(IngredientNames.clean(raw)).isEqualTo(expected);

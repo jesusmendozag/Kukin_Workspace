@@ -113,18 +113,9 @@ public class RecipeImportService {
             applyNutrition(recipe, r);
 
             // 3) Pasos de esta receta en una petición (un paso por renglón)
-            List<String> stepsEn = new ArrayList<>();
-            for (JsonNode block : iterable(r.path("analyzedInstructions"))) {
-                for (JsonNode step : iterable(block.path("steps"))) stepsEn.add(step.path("step").asText(""));
-            }
-            if (stepsEn.isEmpty() && r.hasNonNull("instructions")) {
-                for (String s : r.path("instructions").asText("").replaceAll("<[^>]*>", "\n").split("\\r?\\n|(?<=\\.)\\s+(?=[A-Z])")) {
-                    if (!s.isBlank()) stepsEn.add(s.trim());
-                }
-            }
-            List<String> stepsEs = translator.translateAll(stepsEn);
+            List<String> stepsEs = translator.translateAll(stepsEnOf(r));
             String instructions = String.join("\n", stepsEs.stream().filter(s -> !s.isBlank()).toList());
-            recipe.setInstructions(instructions.isBlank() ? "Reúne todos los ingredientes.\nCocina a fuego medio.\nSirve y disfruta." : instructions);
+            recipe.setInstructions(instructions.isBlank() ? NO_STEPS : instructions);
 
             Set<Long> added = new HashSet<>();
             for (JsonNode ing : iterable(ingredientsOf(r))) {
@@ -266,5 +257,22 @@ public class RecipeImportService {
         }
         if (r.hasNonNull("pricePerServing")) recipe.setPricePerServing((int) Math.round(r.path("pricePerServing").asDouble()));
         if (r.hasNonNull("healthScore")) recipe.setHealthScore((int) Math.round(r.path("healthScore").asDouble()));
+    }
+
+    /** Texto que se guarda cuando Spoonacular no manda pasos (la app lo muestra como "sin instrucciones"). */
+    public static final String NO_STEPS = "";
+
+    /** Pasos en inglés de una receta de Spoonacular: primero los analizados, si no, el texto de instrucciones. */
+    public static List<String> stepsEnOf(JsonNode r) {
+        List<String> stepsEn = new ArrayList<>();
+        for (JsonNode block : iterable(r.path("analyzedInstructions"))) {
+            for (JsonNode step : iterable(block.path("steps"))) stepsEn.add(step.path("step").asText(""));
+        }
+        if (stepsEn.isEmpty() && r.hasNonNull("instructions")) {
+            for (String s : r.path("instructions").asText("").replaceAll("<[^>]*>", "\n").split("\\r?\\n|(?<=\\.)\\s+(?=[A-Z])")) {
+                if (!s.isBlank()) stepsEn.add(s.trim());
+            }
+        }
+        return stepsEn;
     }
 }
