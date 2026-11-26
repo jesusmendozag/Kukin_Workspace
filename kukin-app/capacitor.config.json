@@ -1,0 +1,17 @@
+{
+  "appId": "com.naatlabs.kukin",
+  "appName": "Kukin",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#2D7A47"
+    }
+  }
+}

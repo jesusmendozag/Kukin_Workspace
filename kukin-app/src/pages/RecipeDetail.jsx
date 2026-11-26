@@ -1,203 +1,132 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { IconClock } from '../components/Icons';
-import api from '../services/api';
+import api, { getErrorMessage } from '../services/api';
+import { traducirPalabra, traducirTexto } from '../services/translator';
+
+const formatAmount = (n) => Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 });
 
 function RecipeDetail() {
-  const { id } = useParams();
+  const { source, id } = useParams();
   const navigate = useNavigate();
   const [recipe, setRecipe] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Estados para la interactividad
-  const [checkedIngs, setCheckedIngs] = useState({});
-  const [completedSteps, setCompletedSteps] = useState([]);
+  const [error, setError] = useState('');
+  const [checked, setChecked] = useState({});
 
   useEffect(() => {
-    const fetchRecipeFromDB = async () => {
+    let cancelled = false;
+    const load = async () => {
       try {
-        setLoading(true);
-        const response = await api.get(`/recipes/${id}`);
-        setRecipe(response.data.data || response.data);
-      } catch (error) {
-        console.error("Error cargando detalle desde la BD:", error);
+        const { data } = await api.get(`/recipes/${id}`, { params: { source } });
+        const r = data.data;
+        // Las recetas propias ya están en español; las de Spoonacular se traducen
+        const needsTranslation = r.source === 'SPOONACULAR';
+        const [title, steps] = await Promise.all([
+          needsTranslation ? traducirTexto(r.titleRecipe) : r.titleRecipe,
+          Promise.all((r.steps || []).map((s) => (needsTranslation ? traducirTexto(s) : s))),
+        ]);
+        if (cancelled) return;
         setRecipe({
-          title_recipe: "Receta de Prueba Local",
-          url_image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&q=80&w=800",
-          time_preparation: 30, servings: 2,
-          ingredients: [{ ingredient_name: "Pollo", amount: 1, unit_symbol: "pza" }],
-          instructions: "1. Información de prueba porque falló la conexión con Java."
+          title,
+          image: r.urlImage,
+          time: r.timePreparation,
+          servings: r.servings,
+          ingredients: (r.ingredients || []).map((ing) => ({
+            name: traducirPalabra(ing.ingredientName),
+            amount: ing.amount,
+            unit: ing.unitSymbol,
+            inInventory: ing.inUserInventory,
+          })),
+          steps,
         });
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err));
       }
     };
-    if (id !== "undefined") {
-      fetchRecipeFromDB();
-    }
-  }, [id]);
+    load();
+    return () => { cancelled = true; };
+  }, [id, source]);
 
-  // Funciones de interacción
-  const toggleIngredient = (index) => {
-    setCheckedIngs(prev => ({ ...prev, [index]: !prev[index] }));
-  };
-
-  const toggleStep = (index) => {
-    if (completedSteps.includes(index)) {
-      setCompletedSteps(completedSteps.filter(i => i !== index));
-    } else {
-      setCompletedSteps([...completedSteps, index]);
-    }
-  };
-
-  if (loading || !recipe) return (
-    <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4 relative overflow-hidden">
-      <div className="w-12 h-12 border-4 border-gray-200 border-t-[#2D7A47] rounded-full animate-spin mb-4" />
-      <h2 className="text-xl font-black text-[#0B1E36] tracking-tight" style={{ fontFamily: "Fraunces, serif" }}>
-        Sirviendo la mesa...
-      </h2>
+  if (error) return (
+    <div className="min-h-screen bg-[#F7F3EE] flex flex-col items-center justify-center gap-6 px-8 text-center">
+      <p role="alert" className="text-lg font-bold text-[#991B1B]">{error}</p>
+      <button onClick={() => navigate(-1)} className="px-6 py-3 bg-[#2D7A47] text-white font-bold rounded-full">Regresar</button>
     </div>
   );
 
-  // Procesamos las instrucciones: Las decodificamos por si Java no limpió los %2C y las dividimos en pasos
-  const rawInstructions = recipe.instructions ? decodeURIComponent(recipe.instructions) : "";
-  const pasosArray = rawInstructions.split('\n').filter(step => step.trim() !== '');
-  
-  // Cálculo de progreso para la barra superior
-  const progress = pasosArray.length > 0 ? Math.round((completedSteps.length / pasosArray.length) * 100) : 0;
+  if (!recipe) return (
+    <div className="min-h-screen bg-[#F7F3EE] flex flex-col items-center justify-center gap-4">
+      <div className="w-12 h-12 border-4 border-gray-300 border-t-[#2D7A47] rounded-full animate-spin"></div>
+      <p className="text-gray-500 font-bold animate-pulse">Preparando receta...</p>
+    </div>
+  );
 
   return (
-    <div className="w-full bg-[#0B1E36] min-h-screen relative">
-      <button 
-        onClick={() => navigate(-1)} 
-        className="fixed top-8 left-6 w-12 h-12 bg-white/90 backdrop-blur-md text-[#0B1E36] rounded-full flex items-center justify-center text-xl font-black active:scale-90 transition-transform duration-300 shadow-xl z-50 border border-white/20"
-      >
-        ←
-      </button>
+    <div className="w-full bg-white min-h-screen pb-safe-10 animate-fade-in-up">
+      {/* Hero inmersivo */}
+      <div className="relative w-full h-[50vh] bg-[#2D7A47] rounded-b-[40px] overflow-hidden shadow-2xl flex items-center justify-center">
+        {recipe.image ? (
+          <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-9xl -mt-16" aria-hidden="true">🍲</span>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
-      <div className="w-full h-[55vh] sticky top-0 z-0">
-        <img 
-          src={recipe.url_image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800"} 
-          alt={recipe.title_recipe} 
-          className="w-full h-full object-cover opacity-90" 
-          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800" }}
-        />
+        <button onClick={() => navigate(-1)} aria-label="Regresar"
+          className="absolute top-safe-8 left-6 w-12 h-12 bg-white/20 backdrop-blur-xl text-white rounded-full flex items-center justify-center font-black active:scale-90 transition-transform">
+          ←
+        </button>
+
+        <div className="absolute bottom-10 left-6 right-6">
+          <h1 className="text-4xl font-black text-white leading-tight mb-4" style={{ fontFamily: "Fraunces, serif" }}>{recipe.title}</h1>
+          <div className="flex items-center gap-3 text-sm font-bold text-white/90">
+            {recipe.time && <span className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full backdrop-blur-md"><IconClock /> {recipe.time} min</span>}
+            {recipe.servings && <span className="bg-white/20 px-4 py-2 rounded-full backdrop-blur-md">🍽️ {recipe.servings} porciones</span>}
+          </div>
+        </div>
       </div>
 
-      <div className="relative z-10 bg-[#FDFBF7] rounded-t-[48px] -mt-[15vh] min-h-screen px-6 pt-8 pb-32 shadow-[0_-20px_40px_rgba(0,0,0,0.2)] animate-fade-in-up">
-        <div className="w-16 h-1.5 bg-gray-300/60 rounded-full mx-auto mb-10" />
-
-        <h1 className="text-4xl md:text-5xl font-black text-[#0B1E36] leading-tight mb-6 tracking-tighter" style={{ fontFamily: "Fraunces, serif" }}>
-          {decodeURIComponent(recipe.title_recipe)}
-        </h1>
-
-        <div className="flex flex-wrap items-center gap-3 mb-10">
-          <span className="flex items-center gap-2 bg-white text-[#0B1E36] font-black px-5 py-3 rounded-[16px] shadow-sm text-sm border border-gray-100">
-            <IconClock className="w-5 h-5 text-[#2D7A47]"/> {recipe.time_preparation || 0} min
-          </span>
-          <span className="bg-white text-[#0B1E36] font-black px-5 py-3 rounded-[16px] shadow-sm text-sm border border-gray-100">
-            🍽️ {recipe.servings || 2} porciones
-          </span>
+      <div className="px-6 mt-10 space-y-12">
+        {/* Ingredientes: se pueden ir marcando mientras se cocina */}
+        <div>
+          <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tight" style={{ fontFamily: "Fraunces, serif" }}>Ingredientes</h3>
+          <div className="space-y-4">
+            {recipe.ingredients.map((ing, i) => (
+              <label key={i} className="flex items-center justify-between p-5 bg-[#F7F3EE] rounded-3xl active:scale-[0.98] transition-transform cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <input type="checkbox" className="sr-only" checked={!!checked[i]}
+                    onChange={() => setChecked((c) => ({ ...c, [i]: !c[i] }))} />
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs text-white transition-colors ${checked[i] ? 'bg-[#2D7A47] border-[#2D7A47]' : 'border-gray-300 bg-white'}`}>
+                    {checked[i] && '✓'}
+                  </div>
+                  <div>
+                    <span className={`text-lg font-bold capitalize ${checked[i] ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{ing.name}</span>
+                    {ing.inInventory && <span className="block text-[11px] font-black uppercase text-[#2D7A47]">En tu alacena</span>}
+                  </div>
+                </div>
+                <span className="text-sm font-black text-gray-400">{formatAmount(ing.amount)} {ing.unit || 'pza'}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-12">
-          {/* SECCIÓN INGREDIENTES */}
-          {recipe.ingredients && recipe.ingredients.length > 0 && (
-            <div>
-              <h3 className="text-2xl font-black text-[#0B1E36] mb-6 flex items-center justify-between" style={{ fontFamily: "Fraunces, serif" }}>
-                Ingredientes
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#2D7A47] bg-[#E8F5E9] px-3 py-1.5 rounded-full font-sans">
-                  {recipe.ingredients.length} items
-                </span>
-              </h3>
-              
-              <div className="space-y-3">
-                {recipe.ingredients.map((ing, i) => {
-                  const isChecked = checkedIngs[i];
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => toggleIngredient(i)}
-                      className={`flex items-center justify-between p-4 rounded-[24px] shadow-sm active:scale-[0.97] transition-all duration-300 cursor-pointer border ${isChecked ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-transparent hover:border-[#2D7A47]/30'}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 flex-shrink-0 ${isChecked ? 'bg-[#2D7A47] border-[#2D7A47]' : 'border-gray-300 bg-white'}`}>
-                          {isChecked && <span className="text-white text-xs font-bold">✓</span>}
-                        </div>
-                        <span className={`text-[15px] font-semibold capitalize leading-tight transition-all duration-300 ${isChecked ? 'text-gray-400 line-through' : 'text-[#0B1E36]'}`}>
-                          {decodeURIComponent(ing.ingredient_name || ing.name_es)}
-                        </span>
-                      </div>
-                      <span className={`text-xs font-black px-3 py-1.5 rounded-[10px] transition-all duration-300 flex-shrink-0 whitespace-nowrap ${isChecked ? 'bg-gray-200 text-gray-500' : 'bg-[#E8F5E9] text-[#2D7A47]'}`}>
-                        {ing.amount} {ing.unit_symbol}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Preparación */}
+        <div>
+          <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tight" style={{ fontFamily: "Fraunces, serif" }}>Preparación</h3>
+          {recipe.steps.length > 0 ? (
+            <div className="space-y-8">
+              {recipe.steps.map((text, index) => (
+                <div key={index} className="flex gap-5">
+                  <div className="w-10 h-10 rounded-full bg-[#2D7A47] text-white flex items-center justify-center font-black flex-shrink-0 shadow-lg shadow-green-900/20">
+                    {index + 1}
+                  </div>
+                  <p className="text-lg text-gray-700 leading-relaxed font-medium pt-1">{text}</p>
+                </div>
+              ))}
             </div>
+          ) : (
+            <p className="text-lg text-gray-500 font-bold bg-[#F7F3EE] p-6 rounded-3xl">Instrucciones no disponibles.</p>
           )}
-
-          {/* SECCIÓN PREPARACIÓN INTERACTIVA */}
-          <div>
-            <div className="flex justify-between items-end mb-6">
-              <h3 className="text-2xl font-black text-[#0B1E36]" style={{ fontFamily: "Fraunces, serif" }}>
-                Preparación
-              </h3>
-              {pasosArray.length > 0 && (
-                <span className="text-xs font-bold text-[#2D7A47]">{progress}%</span>
-              )}
-            </div>
-
-            {/* Barra de Progreso Dinámica */}
-            {pasosArray.length > 0 && (
-              <div className="w-full bg-gray-200 h-1.5 rounded-full mb-8 overflow-hidden">
-                <div 
-                  className="h-full bg-[#2D7A47] transition-all duration-500 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            )}
-
-            {pasosArray.length > 0 ? (
-              <div className="space-y-4">
-                {pasosArray.map((paso, index) => {
-                  const isDone = completedSteps.includes(index);
-                  // Limpiamos la enumeración cruda ("1. ", "2. ")
-                  const cleanText = paso.replace(/^\d+\.\s*/, '');
-                  
-                  return (
-                    <div 
-                      key={index}
-                      onClick={() => toggleStep(index)}
-                      className={`relative flex gap-4 p-5 rounded-[24px] cursor-pointer transition-all duration-300 active:scale-[0.98] border ${
-                        isDone 
-                          ? 'bg-gray-50 border-gray-100 opacity-60 shadow-none' 
-                          : 'bg-white border-transparent shadow-sm hover:border-[#2D7A47]/30'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-sm font-black transition-colors ${
-                        isDone ? 'bg-[#2D7A47] text-white' : 'bg-[#E8F5E9] text-[#2D7A47]'
-                      }`}>
-                        {isDone ? '✓' : index + 1}
-                      </div>
-                      
-                      <p className={`text-[15px] font-semibold mt-1 leading-relaxed transition-colors ${
-                        isDone ? 'text-gray-400 line-through' : 'text-gray-700'
-                      }`}>
-                        {cleanText}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="bg-white p-8 rounded-[32px] shadow-sm text-center border border-gray-50">
-                <div className="text-4xl mb-3">🥗</div>
-                <p className="text-lg text-[#0B1E36] font-black" style={{ fontFamily: "Fraunces, serif" }}>Mezcla todo y disfruta</p>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>

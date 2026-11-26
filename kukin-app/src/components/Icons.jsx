@@ -1,4 +1,3 @@
-import React from 'react';
 
 export const IconLeaf = ({ className = "w-6 h-6" }) => (
   <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>

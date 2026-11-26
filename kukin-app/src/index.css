@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
 @import 'tailwindcss';
 
 @theme {
@@ -10,25 +10,33 @@ body {
   font-family: var(--font-sans);
   background-color: #F7F3EE;
   -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent; /* Evita el parpadeo azul en móviles al tocar */
 }
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
 
-/* Animaciones Fluidas */
+/* Animaciones Fluidas Impecables */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
 }
+/* Áreas seguras del celular (barra de estado, notch y barra de gestos).
+   En el navegador env() vale 0, así que no cambia nada en la versión web. */
+@utility pt-safe-12 { padding-top: calc(env(safe-area-inset-top, 0px) + 3rem); }
+@utility pt-safe-16 { padding-top: calc(env(safe-area-inset-top, 0px) + 4rem); }
+@utility top-safe-8 { top: calc(env(safe-area-inset-top, 0px) + 2rem); }
+@utility pb-safe-10 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2.5rem); }
+@utility pb-safe-32 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8rem); }
+@utility bottom-safe-6 { bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
 
-/* Retrasos para listas (Cascada) */
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
+/* Sensación de app nativa: sin resaltado azul al tocar ni rebote al hacer scroll */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}

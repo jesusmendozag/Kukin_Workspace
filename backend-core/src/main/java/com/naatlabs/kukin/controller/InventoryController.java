@@ -37,11 +37,10 @@ public class InventoryController {
         return ResponseEntity.ok(new ApiResponse<>(response));
     }
 
-    // Prueba S4: Quitar ingrediente de la alacena
-    @DeleteMapping("/{idIngredient}")
-    public ResponseEntity<Void> removeIngredient(@PathVariable Long idIngredient, Authentication authentication) {
-        // Asegúrate de tener este método en tu InventoryService
-        inventoryService.removeIngredient(authentication.getName(), idIngredient);
+    /** Elimina un ingrediente del inventario (por ejemplo, cuando se terminó o se usó en una receta). */
+    @DeleteMapping("/{idInventory}")
+    public ResponseEntity<Void> deleteIngredient(@PathVariable Long idInventory, Authentication authentication) {
+        inventoryService.removeFromInventory(authentication.getName(), idInventory);
         return ResponseEntity.noContent().build();
     }
 }

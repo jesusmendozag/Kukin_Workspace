@@ -1,182 +1,120 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IconClock } from '../components/Icons';
-import api from '../services/api';
+import api, { getErrorMessage } from '../services/api';
+import { traducirPalabra } from '../services/translator';
 
-const filtrosDisponibles = ["Todas", "Rápidas", "Al 100%", "Mexicanas", "Ligeras"];
+// Convierte la respuesta del backend al formato que usa la tarjeta
+const toCard = (r) => ({
+  id: r.idRecipe,
+  source: r.source,
+  title: r.titleRecipe,
+  image: r.urlImage,
+  time: r.timePreparation || 30,
+  match: r.matchPercentage,
+  diets: (r.diets || []).slice(0, 2).map(traducirPalabra),
+  missing: (r.missingIngredients || []).map((m) => traducirPalabra(m.ingredientName)),
+});
 
 function Recipes() {
-  const [recipes, setRecipes] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("Todas");
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const loadRecipesFromDB = async () => {
-    try {
-      setLoading(true);
-      // Asegúrate de que la ruta llame a 'suggestions' para que Java haga la matemática
-      const response = await api.get('/recipes/suggestions');
-      setRecipes(response.data.data || []);
-    } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.removeItem('token');
-        navigate('/');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Las sugerencias las calcula el backend con base en la alacena del usuario.
+  // La API key de Spoonacular se queda en el servidor, nunca en la app.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    loadRecipesFromDB();
-  }, []);
+    let cancelled = false;
+    api.get('/recipes/suggestions')
+      .then(({ data }) => {
+        if (cancelled) return;
+        setSuggestions(data.data.map(toCard));
+        setError('');
+      })
+      .catch((err) => !cancelled && setError(getErrorMessage(err)))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
-  const handleDiscover = async () => {
-    if (!window.confirm("¿Buscar nuevas recetas en internet?")) return;
-    try {
-      setSyncing(true);
-      await api.post('/recipes/discover');
-      loadRecipesFromDB(); 
-    } catch (error) {
-      alert("Error al descubrir recetas. Revisa la consola del backend.");
-    } finally {
-      setSyncing(false);
-    }
+  const retry = () => {
+    setLoading(true);
+    setError('');
+    setReloadKey((k) => k + 1);
   };
 
-  // MOTOR DE FILTRADO INTERACTIVO
-  const filteredRecipes = recipes.filter(recipe => {
-    if (activeFilter === "Todas") return true;
-
-    // Uso de "??" para respetar el 0% y evitar el bug de JavaScript
-    const match = recipe.matchPercentage ?? recipe.match_percentage ?? 0;
-    const time = recipe.timePreparation ?? recipe.time_preparation ?? 30;
-    const dietas = recipe.diets || recipe.dietas || [];
-
-    if (activeFilter === "Rápidas") return time <= 30;
-    if (activeFilter === "Al 100%") return match === 100;
-    if (activeFilter === "Mexicanas") {
-      return dietas.some(d => d.toLowerCase().includes("mexican")) || 
-             (recipe.titleRecipe || recipe.title_recipe || "").toLowerCase().includes("taco");
-    }
-    if (activeFilter === "Ligeras") return dietas.some(d => d.toLowerCase().includes("ligera") || d.toLowerCase().includes("keto"));
-    
-    return true;
-  });
-
   return (
-    <div className="w-full px-6 pt-12 bg-[#FDFBF7] min-h-screen animate-fade-in-up">
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-4xl font-black text-[#0B1E36] tracking-tighter mb-1" style={{ fontFamily: "Fraunces, serif" }}>Para Ti</h1>
-          <p className="text-sm font-bold text-gray-400">Recetas sugeridas</p>
-        </div>
-        
-        <button 
-          onClick={handleDiscover}
-          disabled={syncing}
-          className="bg-[#2D7A47] text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-[14px] shadow-lg shadow-green-900/20 active:scale-90 transition-transform flex items-center gap-2"
-        >
-          {syncing ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "➕ Descubrir"}
-        </button>
+    <div className="w-full px-6 pt-safe-12 animate-fade-in-up">
+      <div className="mb-8">
+        <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: "Fraunces, serif" }}>Recetas</h1>
+        <p className="text-base font-bold text-gray-400">Según lo que tienes en tu alacena</p>
       </div>
 
-      {/* BOTONES INTERACTIVOS */}
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-6 -mx-6 px-6">
-        {filtrosDisponibles.map((filter) => (
-          <button 
-            key={filter} 
-            onClick={() => setActiveFilter(filter)}
-            className={`whitespace-nowrap px-5 py-2.5 rounded-[14px] text-sm font-black transition-all duration-300 active:scale-95 ${
-              activeFilter === filter 
-                ? "bg-[#0B1E36] text-white shadow-lg scale-105" 
-                : "bg-white text-gray-500 border border-gray-100 shadow-sm opacity-80 hover:opacity-100"
-            }`}
-          >
-            {filter}
-          </button>
-        ))}
-      </div>
+      {error && (
+        <div role="alert" className="mb-6 text-sm font-bold text-[#991B1B] bg-[#FEE2E2] px-5 py-4 rounded-3xl">
+          {error}
+          <button onClick={retry} className="block mt-2 underline">Reintentar</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-6">
-          {[1, 2].map(i => (
-            <div key={i} className="w-full bg-white rounded-[24px] overflow-hidden shadow-sm animate-pulse h-72" />
-          ))}
+          {[1, 2].map((i) => <div key={i} className="w-full h-72 bg-gray-200 rounded-[32px] animate-pulse" />)}
+        </div>
+      ) : suggestions.length === 0 && !error ? (
+        <div className="bg-white rounded-[32px] p-8 text-center shadow-sm">
+          <div className="text-5xl mb-4">🍳</div>
+          <h3 className="text-2xl font-black text-gray-900 mb-2" style={{ fontFamily: "Fraunces, serif" }}>Aún no hay sugerencias</h3>
+          <p className="text-gray-500 mb-6">Agrega más ingredientes a tu alacena para encontrar recetas que puedas preparar.</p>
+          <button onClick={() => navigate('/add')} className="px-6 py-3 bg-[#2D7A47] text-white font-bold rounded-full active:scale-95 transition-transform">
+            Agregar ingrediente
+          </button>
         </div>
       ) : (
-        <div className="space-y-6 pb-32">
-          {filteredRecipes.map((recipe, index) => {
-            const id = recipe.id_recipe || recipe.idRecipe;
-            const title = recipe.title_recipe || recipe.titleRecipe || "Receta sin título";
-            const image = recipe.url_image || recipe.urlImage || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800";
-            const time = recipe.time_preparation || recipe.timePreparation || 30;
-            const match = recipe.matchPercentage ?? recipe.match_percentage ?? 0;
-            const dietas = recipe.diets || recipe.dietas || [];
-
-            return (
-              <div 
-                key={id || index} 
-                onClick={() => navigate(`/recipe/${id}`)} 
-                className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-[0.97] transition-transform cursor-pointer animate-fade-in-up border border-gray-50 flex flex-col"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="relative w-full h-48 bg-gray-200 overflow-hidden">
-                  <img 
-                    src={image} 
-                    alt={title} 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800" }}
-                  />
-                  <div className={`absolute top-4 right-4 px-3 py-1.5 backdrop-blur-md font-black text-[10px] rounded-lg shadow-sm ${
-                    match >= 80 ? 'bg-[#2D7A47]/90 text-white' : 
-                    match >= 40 ? 'bg-[#F59E0B]/90 text-white' : 
-                    'bg-white/90 text-[#0B1E36]'
-                  }`}>
-                    {match}% Coincidencia
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {dietas.length > 0 ? (
-                      dietas.map((diet, idx) => (
-                        <span key={idx} className="text-[9px] font-black uppercase tracking-widest text-[#2D7A47] bg-[#E8F5E9] px-2.5 py-1 rounded-md">
-                          {diet}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">
-                        Cocina Libre
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="text-xl font-black text-[#0B1E36] leading-tight mb-3" style={{ fontFamily: "Fraunces, serif" }}>
-                    {title}
-                  </h3>
-                  
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400">
-                      <IconClock className="w-4 h-4"/> {time} min
-                    </span>
-                    <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-[#0B1E36] font-black transition-colors group-hover:bg-[#2D7A47] group-hover:text-white">
-                      →
-                    </div>
-                  </div>
+        <div className="space-y-6">
+          {suggestions.map((recipe, index) => (
+            <button
+              type="button"
+              key={`${recipe.source}-${recipe.id}`}
+              onClick={() => navigate(`/recipe/${recipe.source}/${recipe.id}`)}
+              className="block w-full text-left bg-white rounded-[32px] overflow-hidden shadow-xl shadow-gray-200/50 active:scale-95 transition-all cursor-pointer animate-fade-in-up"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="relative w-full h-56 bg-[#DCFCE7] flex items-center justify-center">
+                {recipe.image ? (
+                  <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" loading="lazy" />
+                ) : (
+                  <span className="text-7xl" aria-hidden="true">🍲</span>
+                )}
+                <div className="absolute top-4 right-4 px-4 py-2 bg-white/90 backdrop-blur-md text-gray-900 font-black text-xs rounded-full">
+                  {recipe.match}% Alacena
                 </div>
               </div>
-            );
-          })}
 
-          {filteredRecipes.length === 0 && (
-            <div className="text-center p-8 bg-white rounded-[24px] shadow-sm animate-fade-in-up">
-              <div className="text-4xl mb-4">🔍</div>
-              <p className="font-bold text-[#0B1E36]">No hay recetas que coincidan.</p>
-              <p className="text-sm text-gray-500 mt-2">Intenta cambiar de filtro o descubre nuevas recetas.</p>
-            </div>
-          )}
+              <div className="p-6">
+                <h3 className="text-2xl font-black text-gray-900 mb-4 leading-tight" style={{ fontFamily: "Fraunces, serif" }}>{recipe.title}</h3>
+
+                {recipe.missing.length > 0 && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    <span className="font-bold text-gray-700">Te falta:</span> {recipe.missing.join(', ')}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex gap-2">
+                    {recipe.diets.map((diet) => (
+                      <span key={diet} className="text-[10px] font-black uppercase tracking-wide text-[#2D7A47] bg-[#DCFCE7] px-3 py-1.5 rounded-full">{diet}</span>
+                    ))}
+                  </div>
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-gray-400">
+                    <IconClock /> {recipe.time} min
+                  </span>
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>

@@ -54,7 +54,7 @@ public class AuthService {
                 savedUser.getEmail(),
                 savedUser.getTypePlan().name(),
                 token,
-                3600L
+                jwtUtil.getExpirationSeconds()
         );
     }
 
@@ -78,7 +78,7 @@ public class AuthService {
                 user.getEmail(),
                 user.getTypePlan().name(),
                 token,
-                3600L
+                jwtUtil.getExpirationSeconds()
         );
     }
 }
