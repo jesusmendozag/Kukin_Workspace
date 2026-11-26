@@ -1,29 +1,26 @@
-const diccionario = {
-  "gluten free": "Sin gluten", "dairy free": "Sin lácteos", "vegan": "Vegano", 
-  "vegetarian": "Vegetariano", "paleolithic": "Paleo", "primal": "Primal",
-  "egg": "Huevo", "eggs": "Huevos", "tomato": "Jitomate", "tomatoes": "Jitomates", 
-  "onion": "Cebolla", "garlic": "Ajo", "chicken": "Pollo", "cheese": "Queso",
-  "water": "Agua", "salt": "Sal", "pepper": "Pimienta", "butter": "Mantequilla"
+// Las recetas, ingredientes e instrucciones ya llegan en español desde el backend
+// (se traducen y se guardan en MySQL al importarlas). La app no llama a ningún traductor externo.
+// Aquí solo queda un diccionario local para las etiquetas de dieta que manda Spoonacular.
+const DIETAS = {
+  'gluten free': 'Sin gluten',
+  'dairy free': 'Sin lácteos',
+  vegan: 'Vegano',
+  vegetarian: 'Vegetariano',
+  'lacto ovo vegetarian': 'Vegetariano',
+  'lacto vegetarian': 'Lactovegetariano',
+  'ovo vegetarian': 'Ovovegetariano',
+  pescatarian: 'Pescetariano',
+  pescetarian: 'Pescetariano',
+  paleolithic: 'Paleo',
+  paleo: 'Paleo',
+  primal: 'Primal',
+  ketogenic: 'Keto',
+  keto: 'Keto',
+  'whole 30': 'Whole30',
+  'fodmap friendly': 'Bajo en FODMAP',
 };
 
 export const traducirPalabra = (word) => {
-  if (!word) return "";
-  const lower = word.toLowerCase().trim();
-  return diccionario[lower] || word;
-};
-
-// Traducción asíncrona para textos largos (instrucciones de Spoonacular).
-// MyMemory es un servicio gratuito sin API key; si falla o agota su cuota se deja el texto original.
-export const traducirTexto = async (texto) => {
-  if (!texto) return "";
-  try {
-    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=en|es`);
-    if (!res.ok) return texto;
-    const data = await res.json();
-    const traducido = data?.responseData?.translatedText;
-    if (!traducido || data.responseStatus !== 200 || /MYMEMORY WARNING/i.test(traducido)) return texto;
-    return traducido;
-  } catch {
-    return texto; // Sin red: se muestra en inglés
-  }
+  if (!word) return '';
+  return DIETAS[word.toLowerCase().trim()] || word;
 };

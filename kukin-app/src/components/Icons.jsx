@@ -1,61 +1,65 @@
+// Íconos dibujados con el mismo trazo (2px, puntas redondas). Tamaño por className.
+const Svg = ({ className = 'w-6 h-6', children, fill = 'none' }) => (
+  <svg viewBox="0 0 24 24" fill={fill} className={className} stroke="currentColor" strokeWidth={2}
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+);
 
-export const IconLeaf = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <path d="M5 21c0 0 2-8 8-10s8-2 8-2-2 8-8 10S5 21 5 21z" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M5 21l7-7" strokeLinecap="round"/>
-  </svg>
+export const IconHome = (p) => (
+  <Svg {...p}><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10z" /></Svg>
 );
-export const IconHome = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
-    <polyline points="9,22 9,12 15,12 15,22" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+export const IconPantry = (p) => (
+  <Svg {...p}><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z" /><path d="M3 10l2-6h14l2 6" /><path d="M9 14h6" /></Svg>
 );
-export const IconSearch = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <circle cx="11" cy="11" r="8"/>
-    <line x1="21" y1="21" x2="16.65" y2="16.65" strokeLinecap="round"/>
-  </svg>
+export const IconPot = (p) => (
+  <Svg {...p}><path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-6z" /><path d="M2 10h20" /><path d="M9 6c0-1 .6-2 1.5-2M14 6c0-1 .6-2 1.5-2" /></Svg>
 );
-export const IconUser = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="12" cy="7" r="4"/>
-  </svg>
+export const IconLeaf = (p) => (
+  <Svg {...p}><path d="M5 21c0-9 5-15 15-16-1 10-7 15-15 16z" /><path d="M5 21l8-8" /></Svg>
 );
-export const IconPlus = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round"/>
-    <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round"/>
-  </svg>
+export const IconUser = (p) => (
+  <Svg {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></Svg>
 );
-export const IconClock = ({ className = "w-5 h-5" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <circle cx="12" cy="12" r="10"/>
-    <polyline points="12,6 12,12 16,14" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+export const IconPlus = (p) => (
+  <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg>
 );
-export const IconFire = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 3z" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+export const IconBack = (p) => (
+  <Svg {...p}><path d="M15 5l-7 7 7 7" /></Svg>
 );
-export const IconDumbbell = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <rect x="1" y="9" width="4" height="6" rx="2"/>
-    <rect x="19" y="9" width="4" height="6" rx="2"/>
-    <rect x="4" y="7" width="2" height="10" rx="1"/>
-    <rect x="18" y="7" width="2" height="10" rx="1"/>
-    <line x1="6" y1="12" x2="18" y2="12" strokeLinecap="round"/>
-  </svg>
+export const IconClose = (p) => (
+  <Svg {...p}><path d="M6 6l12 12M18 6L6 18" /></Svg>
 );
-export const IconHeart = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+export const IconCheck = (p) => (
+  <Svg {...p}><path d="M5 12.5l4.5 4.5L19 7" /></Svg>
 );
-export const IconMoon = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth={1.5}>
-    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+export const IconSearch = (p) => (
+  <Svg {...p}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></Svg>
+);
+export const IconClock = (p) => (
+  <Svg className="w-5 h-5" {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Svg>
+);
+export const IconServings = (p) => (
+  <Svg className="w-5 h-5" {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /></Svg>
+);
+export const IconTrash = (p) => (
+  <Svg {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></Svg>
+);
+export const IconSparkle = (p) => (
+  <Svg {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6" /></Svg>
+);
+export const IconLogout = (p) => (
+  <Svg {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 16l-4-4 4-4M6 12h10" /></Svg>
+);
+export const IconFire = (p) => (
+  <Svg {...p}><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z" /></Svg>
+);
+export const IconDumbbell = (p) => (
+  <Svg {...p}><path d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12" /></Svg>
+);
+export const IconHeart = (p) => (
+  <Svg {...p}><path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 9-2 4.5 4.5 0 0 1 9 2c-2 4.5-9 9-9 9z" /></Svg>
+);
+export const IconMoon = (p) => (
+  <Svg {...p}><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" /></Svg>
 );

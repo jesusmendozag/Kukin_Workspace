@@ -29,6 +29,10 @@ public class Recipe {
     @Column(name = "url_image", length = 255)
     private String urlImage;
 
+    /** Porciones (recetas de Spoonacular). Columna nueva y opcional: Hibernate la agrega sola (ddl-auto=update). */
+    @Column(name = "servings")
+    private Integer servings;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SourceType source = SourceType.OWN;
@@ -55,6 +59,8 @@ public class Recipe {
     public void setInstructions(String instructions) { this.instructions = instructions; }
     public Integer getTimePreparation() { return timePreparation; }
     public void setTimePreparation(Integer timePreparation) { this.timePreparation = timePreparation; }
+    public Integer getServings() { return servings; }
+    public void setServings(Integer servings) { this.servings = servings; }
     public String getUrlImage() { return urlImage; }
     public void setUrlImage(String urlImage) { this.urlImage = urlImage; }
     public SourceType getSource() { return source; }

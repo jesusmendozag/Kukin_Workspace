@@ -1,42 +1,175 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
 @import 'tailwindcss';
 
+/* Fraunces incluida en la app (funciona sin internet). Variable: un archivo sirve todos los pesos. */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ───────── Sistema de diseño Kukin: orgánico, editorial y táctil ───────── */
 @theme {
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-display: 'Fraunces', serif;
+  --font-sans: system-ui, -apple-system, 'Roboto', 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+
+  --color-basil: #2D7A47;        /* primario: acción y marca */
+  --color-basil-dark: #236239;
+  --color-navy: #0B1E36;         /* secundario: títulos, texto fuerte, acciones internas */
+  --color-cream: #FDFBF7;        /* fondo de vistas internas */
+  --color-sand: #F7F3EE;         /* fondo de bienvenida / login */
+  --color-soft: #5B6577;         /* texto secundario (6:1 sobre crema) */
+  --color-hairline: #ECE7DF;
+
+  --color-fresh-bg: #E8F5E9;     /* fresco / óptimo */
+  --color-fresh: #2E7D32;
+  --color-alert-bg: #FFEBEE;     /* caducidad / falta */
+  --color-alert: #C62828;
+  --color-amber: #F59E0B;        /* coincidencia media */
+  --color-discover-bg: #EDE7F6;  /* tarjeta descubrir */
+  --color-discover: #4527A0;
 }
 
-body {
-  font-family: var(--font-sans);
-  background-color: #F7F3EE;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  html {
+    font-size: 17px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    /* Barras del sistema: llegan desde MainActivity; en el navegador se usa env() */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    background-color: var(--color-cream);
+    color: var(--color-navy);
+    -webkit-font-smoothing: antialiased;
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+  ::selection { background: var(--color-fresh-bg); color: var(--color-navy); }
+  input, select, textarea, button { font: inherit; }
+  input { caret-color: var(--color-basil); }
+  :focus-visible { outline: 3px solid var(--color-basil); outline-offset: 2px; }
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+/* Títulos editoriales */
+@utility font-display { font-family: var(--font-display); letter-spacing: -0.03em; }
+/* Micro-copys: mayúsculas espaciadas (12px para que se lean bien) */
+@utility label-micro {
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-soft);
+}
+@utility tabular { font-variant-numeric: tabular-nums; }
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
 
-/* Animaciones Fluidas Impecables */
+/* Espacio para barras del sistema y la barra flotante */
+@utility pt-safe { padding-top: var(--safe-top); }
+@utility pb-safe { padding-bottom: var(--safe-bottom); }
+@utility pb-nav { padding-bottom: calc(var(--safe-bottom) + 8rem); }
+@utility bottom-nav { bottom: calc(var(--safe-bottom) + 1rem); }
+@utility bottom-fab { bottom: calc(var(--safe-bottom) + 6.5rem); }
+
+/* Campos grandes */
+@utility field {
+  width: 100%;
+  min-height: 3.5rem;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  padding: 0.75rem 1.1rem;
+  font-size: 1.06rem;
+  color: var(--color-navy);
+  box-shadow: 0 1px 3px rgb(11 30 54 / 0.06);
+  transition: border-color 0.15s;
+  &:focus { outline: none; border-color: var(--color-basil); }
+  &::placeholder { color: #7A8394; }
+}
+
+/* Mientras se escribe, la barra inferior estorba: se oculta */
+@custom-variant keyboard-open (.keyboard-open &);
+.keyboard-open .hide-on-keyboard { display: none !important; }
+.show-on-keyboard { display: none; }
+.keyboard-open .show-on-keyboard { display: block; }
+
+/* Franja que tapa la barra de estado: el contenido no se ve detrás del reloj al hacer scroll */
+.status-scrim {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--safe-top);
+  background: rgb(253 251 247 / 0.94);
+  backdrop-filter: blur(8px);
+  z-index: 35;
+  pointer-events: none;
+}
+
+/* Entrada escalonada.
+   "backwards" (no "both"): al terminar, la animación ya no deja transform en el contenedor.
+   Un transform activo hace que los elementos position:fixed (el botón +, barras inferiores)
+   se peguen al contenedor y se muevan con el scroll en lugar de quedarse en la pantalla. */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0.001; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+.animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  opacity: 0;
+/* Olla con vapor (vistas de carga) */
+@keyframes potBob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
 }
-/* Áreas seguras del celular (barra de estado, notch y barra de gestos).
-   En el navegador env() vale 0, así que no cambia nada en la versión web. */
-@utility pt-safe-12 { padding-top: calc(env(safe-area-inset-top, 0px) + 3rem); }
-@utility pt-safe-16 { padding-top: calc(env(safe-area-inset-top, 0px) + 4rem); }
-@utility top-safe-8 { top: calc(env(safe-area-inset-top, 0px) + 2rem); }
-@utility pb-safe-10 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2.5rem); }
-@utility pb-safe-32 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8rem); }
-@utility bottom-safe-6 { bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+@keyframes steam {
+  0% { opacity: 0; transform: translateY(8px) scaleX(1); }
+  30% { opacity: 0.75; }
+  100% { opacity: 0; transform: translateY(-34px) scaleX(1.6); }
+}
+.pot-bob { animation: potBob 1.6s ease-in-out infinite; }
+.steam { animation: steam 2s ease-out infinite; }
 
-/* Sensación de app nativa: sin resaltado azul al tocar ni rebote al hacer scroll */
-html, body {
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
+/* Hoja blanca de la receta que sube sobre la foto */
+@keyframes sheetUp {
+  from { transform: translateY(60px); opacity: 0.001; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.sheet-up { animation: sheetUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+
+/* Palomita que "salta" al completar un paso */
+@keyframes checkPop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.check-pop { animation: checkPop 0.35s cubic-bezier(0.2, 0, 0, 1); }
+
+/* Celebración al terminar la receta */
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-90px) scale(1.15); }
+}
+.float-up { animation: floatUp 1.6s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up, .pot-bob, .steam, .sheet-up, .check-pop, .float-up { animation: none; }
+  * { transition-duration: 0.01ms !important; }
 }

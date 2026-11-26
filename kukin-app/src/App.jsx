@@ -33,8 +33,10 @@ function NativeIntegration() {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    StatusBar.setStyle({ style: Style.Light }).catch(() => {});
-  }, []);
+    // Sobre el verde del login y la foto de la receta: íconos blancos. Sobre el crema: oscuros.
+    const overColor = location.pathname === '/' || location.pathname.startsWith('/recipe/');
+    StatusBar.setStyle({ style: overColor ? Style.Dark : Style.Light }).catch(() => {});
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
@@ -63,7 +65,7 @@ function App() {
 
         {/* Pantallas con menú de navegación inferior */}
         <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
-        <Route path="/add" element={<Protected><AddIngredient /></Protected>} />
+        <Route path="/add" element={<Protected withLayout={false}><AddIngredient /></Protected>} />
         <Route path="/recipes" element={<Protected><Recipes /></Protected>} />
         <Route path="/diets" element={<Protected><Diets /></Protected>} />
         <Route path="/profile" element={<Protected><Profile /></Protected>} />

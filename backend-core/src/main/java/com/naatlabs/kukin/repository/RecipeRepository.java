@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
@@ -16,4 +17,6 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     // Verifica si la receta de Spoonacular ya está guardada en nuestra MySQL
     boolean existsByExternalId(String externalId);
+
+    Optional<Recipe> findByExternalId(String externalId);
 }

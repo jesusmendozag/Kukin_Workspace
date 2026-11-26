@@ -1,28 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getErrorMessage } from '../services/api';
 import { daysUntil, scheduleExpirationReminders } from '../services/notifications';
-import { IconPlus } from '../components/Icons';
 import { getIngredientMeta } from '../services/ingredients';
+import { IconPlus, IconClose } from '../components/Icons';
+import { PageTitle, ErrorBox, EmptyState, Floating } from '../components/ui';
 
-const getUrgency = (dateString) => {
+/** Fresco (> 3 días) o alerta (≤ 3 días o caducado). */
+const getStatus = (dateString) => {
   const days = daysUntil(dateString);
-  if (days === null) return { text: 'Sin caducidad', bg: '#F3F4F6', textCol: '#4B5563' };
-  if (days < 0) return { text: `Venció hace ${-days}d`, bg: '#FEE2E2', textCol: '#991B1B' };
-  if (days === 0) return { text: 'Vence hoy', bg: '#FEE2E2', textCol: '#991B1B' };
-  if (days <= 3) return { text: `Vence en ${days}d`, bg: '#FEE2E2', textCol: '#991B1B' };
-  return { text: `Vence en ${days}d`, bg: '#DCFCE7', textCol: '#166534' };
+  if (days === null) return { alert: false, text: 'Sin caducidad', days: Infinity };
+  if (days < 0) return { alert: true, text: `Venció hace ${-days} ${-days === 1 ? 'día' : 'días'}`, days };
+  if (days === 0) return { alert: true, text: 'Vence hoy', days };
+  if (days <= 3) return { alert: true, text: `Vence en ${days} ${days === 1 ? 'día' : 'días'}`, days };
+  return { alert: false, text: `Vence en ${days} días`, days };
 };
 
 const formatQty = (q) => Number(q).toLocaleString('es-MX', { maximumFractionDigits: 2 });
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
+  const [readyCount, setReadyCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState(null);
-  const navigate = useNavigate();
-
+  const [filter, setFilter] = useState('all');
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -36,13 +39,22 @@ function Dashboard() {
       })
       .catch((err) => !cancelled && setError(getErrorMessage(err)))
       .finally(() => !cancelled && setLoading(false));
+
+    // Cuántas recetas se pueden hacer ya (no bloquea la pantalla si falla)
+    api.get('/recipes/suggestions')
+      .then(({ data }) => !cancelled && setReadyCount(data.data.filter((r) => (r.matchPercentage ?? 0) >= 80).length))
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [reloadKey]);
 
-  const retry = () => {
-    setLoading(true);
-    setReloadKey((k) => k + 1);
-  };
+  const retry = () => { setLoading(true); setReloadKey((k) => k + 1); };
+
+  // Lo que caduca primero, arriba
+  const items = useMemo(() => inventory
+    .map((item) => ({ ...item, status: getStatus(item.expirationDate) }))
+    .sort((a, b) => a.status.days - b.status.days), [inventory]);
+  const expiringCount = items.filter((i) => i.status.alert).length;
+  const shown = filter === 'expiring' ? items.filter((i) => i.status.alert) : items;
 
   const handleDelete = async (idInventory) => {
     try {
@@ -57,89 +69,109 @@ function Dashboard() {
   };
 
   return (
-    <div className="w-full px-6 pt-safe-12 animate-fade-in-up">
-      <div className="mb-10 flex justify-between items-center">
-        <div>
-          <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-1" style={{ fontFamily: "Fraunces, serif" }}>Alacena</h1>
-          <p className="text-base font-bold text-gray-400">
-            {inventory.length} {inventory.length === 1 ? 'ingrediente' : 'ingredientes'}
-          </p>
-        </div>
-        <button
-          onClick={() => navigate('/add')}
-          aria-label="Agregar ingrediente"
-          className="w-14 h-14 bg-[#2D7A47] text-white rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform"
-        >
-          <IconPlus />
-        </button>
-      </div>
+    <div className="animate-fade-in-up">
+      <PageTitle title="Mi inventario"
+        subtitle={loading ? 'Revisando tu alacena…' : `${items.length} ${items.length === 1 ? 'ingrediente' : 'ingredientes'} guardados`} />
 
-      {error && (
-        <div role="alert" className="mb-6 text-sm font-bold text-[#991B1B] bg-[#FEE2E2] px-5 py-4 rounded-3xl">
-          {error}
-          <button onClick={retry} className="block mt-2 underline">Reintentar</button>
-        </div>
-      )}
+      <div className="px-5 space-y-5">
+        <ErrorBox message={error} onRetry={retry} />
 
-      {loading ? (
-        <div className="grid grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="h-52 bg-gray-200 rounded-[32px] animate-pulse" />)}
-        </div>
-      ) : inventory.length === 0 && !error ? (
-        <div className="bg-white rounded-[32px] p-8 text-center shadow-sm">
-          <div className="text-5xl mb-4">🧺</div>
-          <h3 className="text-2xl font-black text-gray-900 mb-2" style={{ fontFamily: "Fraunces, serif" }}>Tu alacena está vacía</h3>
-          <p className="text-gray-500 mb-6">Agrega lo que tienes en casa y te sugerimos qué cocinar.</p>
-          <button onClick={() => navigate('/add')} className="px-6 py-3 bg-[#2D7A47] text-white font-bold rounded-full active:scale-95 transition-transform">
-            Agregar ingrediente
+        {/* Para ti: recetas que ya se pueden cocinar */}
+        {!loading && items.length > 0 && (
+          <button type="button" onClick={() => navigate('/recipes')}
+            className="w-full bg-discover-bg text-discover rounded-[24px] p-5 flex items-center gap-4 text-left active:scale-95 transition-transform">
+            <span className="text-4xl" aria-hidden="true">🍳</span>
+            <span className="flex-1">
+              <span className="block label-micro text-discover/80!">Para ti</span>
+              <span className="block font-display font-black text-[1.35rem] leading-tight">
+                {readyCount ? `${readyCount} ${readyCount === 1 ? 'receta lista' : 'recetas listas'} con lo que tienes` : 'Descubre qué cocinar hoy'}
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-3xl font-black">›</span>
           </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {inventory.map((item, index) => {
-            const status = getUrgency(item.expirationDate);
-            const meta = getIngredientMeta(item.ingredientName);
-            const confirming = confirmId === item.idInventory;
+        )}
 
-            return (
-              <div
-                key={item.idInventory}
-                className="bg-white rounded-[32px] p-6 shadow-sm flex flex-col justify-between h-52 animate-fade-in-up"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ background: meta.bg }}>
+        {!loading && expiringCount > 0 && (
+          <div className="flex gap-2" role="group" aria-label="Filtrar inventario">
+            {[
+              { id: 'all', label: 'Todo' },
+              { id: 'expiring', label: `Por caducar (${expiringCount})` },
+            ].map((f) => (
+              <button key={f.id} type="button" onClick={() => setFilter(f.id)} aria-pressed={filter === f.id}
+                className={`min-h-11 px-5 rounded-full font-bold active:scale-95 transition-transform ${
+                  filter === f.id ? 'bg-navy text-white' : 'bg-white text-navy shadow-sm'}`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="grid grid-cols-2 gap-4" aria-busy="true" aria-label="Cargando inventario">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-[150px] bg-white rounded-[24px] animate-pulse" />)}
+          </div>
+        ) : items.length === 0 && !error ? (
+          <EmptyState emoji="🧺" title="Tu alacena está vacía"
+            text="Agrega lo que tienes en casa y te sugerimos qué cocinar."
+            actionLabel="Agregar ingredientes" onAction={() => navigate('/add')} />
+        ) : (
+          <ul className="grid grid-cols-2 gap-4">
+            {shown.map((item, index) => {
+              const meta = getIngredientMeta(item.ingredientName, item.category);
+              const confirming = confirmId === item.idInventory;
+              return (
+                <li key={item.idInventory}
+                  className="relative bg-white rounded-[24px] shadow-sm min-h-[150px] overflow-hidden animate-fade-in-up"
+                  style={{ animationDelay: `${index * 50}ms` }}>
+                  {/* Esquina con el emoji sobre su color pastel */}
+                  <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-[24px] flex items-center justify-center text-[2rem]"
+                    style={{ background: meta.bg }} aria-hidden="true">
                     {meta.emoji}
                   </div>
+
                   {confirming ? (
-                    <div className="flex flex-col items-end gap-1">
-                      <button onClick={() => handleDelete(item.idInventory)} className="text-[11px] font-black text-white bg-[#991B1B] px-3 py-1.5 rounded-full">
-                        Eliminar
+                    <div className="absolute inset-0 z-10 bg-white flex flex-col items-center justify-center gap-2 p-3 text-center">
+                      <p className="font-bold leading-tight">¿Quitar {item.ingredientName}?</p>
+                      <button type="button" onClick={() => handleDelete(item.idInventory)}
+                        className="w-full min-h-12 rounded-full bg-alert text-white font-bold active:scale-95 transition-transform">
+                        Sí, quitar
                       </button>
-                      <button onClick={() => setConfirmId(null)} className="text-[11px] font-bold text-gray-400 px-2">
+                      <button type="button" onClick={() => setConfirmId(null)}
+                        className="w-full min-h-11 rounded-full font-bold text-soft active:scale-95 transition-transform">
                         Cancelar
                       </button>
                     </div>
                   ) : (
-                    <button onClick={() => setConfirmId(item.idInventory)} aria-label={`Eliminar ${item.ingredientName}`}
-                      className="w-8 h-8 rounded-full text-gray-300 hover:text-gray-500 text-xl leading-none">
-                      ×
+                    <button type="button" onClick={() => setConfirmId(item.idInventory)} aria-label={`Quitar ${item.ingredientName}`}
+                      className="absolute top-1 left-1 w-11 h-11 flex items-center justify-center active:scale-90 transition-transform">
+                      <span className="w-8 h-8 bg-white text-red-500 border border-red-100 rounded-full shadow-md flex items-center justify-center">
+                        <IconClose className="w-4 h-4" />
+                      </span>
                     </button>
                   )}
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight mb-1" style={{ fontFamily: "Fraunces, serif" }}>
-                    {item.ingredientName}
-                  </h3>
-                  <p className="text-sm font-bold text-gray-400 mb-3">{formatQty(item.quantity)} {item.unitSymbol}</p>
-                  <div className="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full" style={{ background: status.bg, color: status.textCol }}>
-                    {status.text}
+
+                  <div className="pt-16 px-4 pb-4">
+                    <h3 className="font-display font-black text-navy text-[1.3rem] leading-tight">{item.ingredientName}</h3>
+                    <p className="font-bold text-soft tabular">{formatQty(item.quantity)} {item.unitSymbol}</p>
+                    <span className={`mt-2 inline-block rounded-full px-3 py-1 text-[0.8rem] font-black ${
+                      item.status.alert ? 'bg-alert-bg text-alert' : 'bg-fresh-bg text-fresh'}`}>
+                      {item.status.text}
+                    </span>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {(loading || items.length > 0) && (
+        <Floating>
+          <button type="button" onClick={() => navigate('/add')} aria-label="Agregar ingrediente"
+            className="hide-on-keyboard fixed right-6 bottom-fab z-30 w-16 h-16 rounded-[22px] bg-basil text-white flex items-center justify-center shadow-[0_10px_24px_-8px_rgb(45_122_71/0.7)] rotate-3 active:rotate-0 active:scale-90 transition-transform">
+            <IconPlus className="w-8 h-8" />
+          </button>
+        </Floating>
       )}
     </div>
   );

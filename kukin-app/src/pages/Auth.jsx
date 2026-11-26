@@ -23,7 +23,8 @@ function Auth() {
         : { ...formData, name: formData.name.trim(), email: formData.email.trim() };
       const response = await api.post(endpoint, payload);
       localStorage.setItem(TOKEN_KEY, response.data.data.token);
-      navigate('/dashboard', { replace: true });
+      // Cuenta nueva: directo a llenar la alacena tocando ingredientes
+      navigate(isLogin ? '/dashboard' : '/add', { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -31,72 +32,66 @@ function Auth() {
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setError('');
-  };
+  const toggleMode = () => { setIsLogin(!isLogin); setError(''); };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#F7F3EE]">
-      {/* Visual plano, sin gradientes ni sombras, enfocado en el color de la marca */}
-      <div className="md:w-1/2 bg-[#2D7A47] text-white flex flex-col justify-center px-8 pb-12 pt-safe-16 md:p-24">
-        <IconLeaf className="w-16 h-16 mb-6" />
-        <h1 className="text-5xl md:text-7xl font-black leading-tight tracking-tighter mb-4" style={{ fontFamily: "Fraunces, serif" }}>
-          Kukin
-        </h1>
-        <p className="text-xl font-medium opacity-90 max-w-sm">
-          Convierte lo que tienes en casa en platillos extraordinarios.
-        </p>
-      </div>
-
-      <div className="flex-1 flex flex-col justify-center px-8 py-12 md:p-24 bg-[#F7F3EE]">
-        <div className="max-w-md w-full mx-auto">
-          <h2 className="text-4xl font-black text-gray-900 mb-2 tracking-tight" style={{ fontFamily: "Fraunces, serif" }}>
-            {isLogin ? 'Bienvenido' : 'Comienza tu viaje'}
-          </h2>
-          <p className="text-base text-gray-500 mb-10">
-            {isLogin ? 'Inicia sesión para ver tu alacena.' : 'Regístrate para reducir el desperdicio.'}
+    <div className="min-h-dvh flex flex-col bg-sand animate-fade-in-up">
+      {/* Bloque de marca verde, compacto, que llega detrás de la barra de estado */}
+      <div className="bg-basil text-white rounded-b-[40px] pt-safe">
+        <div className="px-7 pt-6 pb-9 max-w-md mx-auto w-full">
+          <div className="flex items-center gap-3">
+            <IconLeaf className="w-10 h-10" />
+            <p className="font-display font-black text-[2.6rem] leading-none tracking-tighter">Kukin</p>
+          </div>
+          <p className="mt-3 text-[1.1rem] font-semibold text-white/90">
+            Convierte lo que tienes en casa en platillos extraordinarios.
           </p>
-
-          <form onSubmit={handleSubmit} className="space-y-5 mb-8">
-            {!isLogin && (
-              <div>
-                <label htmlFor="name" className="text-sm font-bold text-gray-900 mb-2 block">Nombre completo</label>
-                <input id="name" type="text" name="name" value={formData.name} onChange={handleChange} required autoComplete="name"
-                  className="w-full px-5 py-4 bg-white text-base text-gray-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#2D7A47]" />
-              </div>
-            )}
-            <div>
-              <label htmlFor="email" className="text-sm font-bold text-gray-900 mb-2 block">Correo electrónico</label>
-              <input id="email" type="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="email"
-                inputMode="email" autoCapitalize="none"
-                className="w-full px-5 py-4 bg-white text-base text-gray-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#2D7A47]" />
-            </div>
-            <div>
-              <label htmlFor="password" className="text-sm font-bold text-gray-900 mb-2 block">Contraseña</label>
-              <input id="password" type="password" name="password" value={formData.password} onChange={handleChange} required
-                autoComplete={isLogin ? 'current-password' : 'new-password'} minLength={isLogin ? undefined : 8}
-                className="w-full px-5 py-4 bg-white text-base text-gray-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#2D7A47]" />
-              {!isLogin && (
-                <p className="text-xs text-gray-500 mt-2">Mínimo 8 caracteres, con al menos una letra y un número.</p>
-              )}
-            </div>
-
-            {error && (
-              <p role="alert" className="text-sm font-bold text-[#991B1B] bg-[#FEE2E2] px-4 py-3 rounded-2xl">{error}</p>
-            )}
-
-            <button type="submit" disabled={loading}
-              className="w-full py-5 bg-[#2D7A47] text-white font-bold text-lg rounded-full mt-4 active:scale-95 transition-transform disabled:opacity-60">
-              {loading ? 'Un momento…' : isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
-            </button>
-          </form>
-
-          <button type="button" onClick={toggleMode} className="w-full text-center text-sm font-bold text-[#2D7A47]">
-            {isLogin ? '¿No tienes cuenta? Regístrate gratis' : '¿Ya tienes cuenta? Inicia sesión'}
-          </button>
         </div>
       </div>
+
+      <main className="flex-1 px-7 pt-8 pb-[calc(var(--safe-bottom)+2rem)] w-full max-w-md mx-auto">
+        <h1 className="font-display font-black text-navy text-[2.1rem] leading-tight tracking-tight">
+          {isLogin ? 'Bienvenido a Kukin.' : 'Comienza tu viaje.'}
+        </h1>
+        <p className="text-soft mt-1 mb-7">
+          {isLogin ? 'Inicia sesión para ver tu alacena.' : 'Regístrate gratis y reduce el desperdicio.'}
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label htmlFor="name" className="label-micro mb-2 block">Nombre</label>
+              <input id="name" type="text" name="name" value={formData.name} onChange={handleChange} required
+                autoComplete="name" enterKeyHint="next" className="field" />
+            </div>
+          )}
+          <div>
+            <label htmlFor="email" className="label-micro mb-2 block">Correo electrónico</label>
+            <input id="email" type="email" name="email" value={formData.email} onChange={handleChange} required
+              autoComplete="email" inputMode="email" autoCapitalize="none" enterKeyHint="next" className="field" />
+          </div>
+          <div>
+            <label htmlFor="password" className="label-micro mb-2 block">Contraseña</label>
+            <input id="password" type="password" name="password" value={formData.password} onChange={handleChange} required
+              autoComplete={isLogin ? 'current-password' : 'new-password'} minLength={isLogin ? undefined : 8}
+              enterKeyHint="go" className="field" />
+            {!isLogin && <p className="text-[0.9rem] text-soft mt-2">Mínimo 8 caracteres, con al menos una letra y un número.</p>}
+          </div>
+
+          {error && (
+            <p role="alert" className="font-bold text-alert bg-alert-bg px-5 py-3.5 rounded-[20px]">{error}</p>
+          )}
+
+          <button type="submit" disabled={loading}
+            className="w-full min-h-14 mt-2 rounded-full bg-basil text-white font-bold text-[1.1rem] active:scale-95 transition-transform disabled:opacity-60">
+            {loading ? 'Un momento…' : isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
+          </button>
+        </form>
+
+        <button type="button" onClick={toggleMode} className="mt-5 w-full min-h-12 font-bold text-basil">
+          {isLogin ? '¿No tienes cuenta? Regístrate gratis' : '¿Ya tienes cuenta? Inicia sesión'}
+        </button>
+      </main>
     </div>
   );
 }
