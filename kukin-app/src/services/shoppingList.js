@@ -2,14 +2,24 @@ import { foldAccents } from './ingredients';
 
 /**
  * Lista del súper guardada en el celular.
- * Cada elemento: { id, name, note, checked }. "note" sirve para la receta de origen o la cantidad.
+ * Cada elemento: { id, name, amount, recipe, checked }.
+ * - amount: cuánto se necesita ("2 cda"), opcional.
+ * - recipe: receta para la que se necesita, opcional (sirve para agrupar la lista).
  */
 const KEY = 'kukin-shopping-list';
 const EVENT = 'kukin-shopping-list-change';
 
+/** Elementos guardados con la versión anterior ("note": "2 cda · Receta") se separan en cantidad y receta. */
+const normalize = (item) => {
+  if (item.note === undefined) return item;
+  const { note, ...rest } = item;
+  const [amount = '', ...recipe] = String(note || '').split(' · ');
+  return { ...rest, amount, recipe: recipe.join(' · ') };
+};
+
 export function getShoppingList() {
   try {
-    return JSON.parse(localStorage.getItem(KEY)) || [];
+    return (JSON.parse(localStorage.getItem(KEY)) || []).map(normalize);
   } catch {
     return [];
   }
@@ -21,24 +31,21 @@ function save(list) {
   return list;
 }
 
-/** Agrega nombres a la lista sin repetir (compara sin acentos ni mayúsculas). Regresa cuántos se agregaron. */
+/** Agrega a la lista sin repetir (compara sin acentos ni mayúsculas). Regresa cuántos se agregaron. */
 export function addToShoppingList(items) {
   const list = getShoppingList();
   const known = new Set(list.map((i) => foldAccents(i.name).trim()));
   let added = 0;
-  for (const { name, note = '' } of items) {
+  for (const { name, amount = '', recipe = '' } of items) {
     const key = foldAccents(name).trim();
     if (!key || known.has(key)) continue;
     known.add(key);
-    list.push({ id: `${Date.now()}-${added}`, name: name.trim(), note, checked: false });
+    list.push({ id: `${Date.now()}-${added}`, name: name.trim(), amount, recipe, checked: false });
     added++;
   }
   save(list);
   return added;
 }
-
-export const isInShoppingList = (name) =>
-  getShoppingList().some((i) => foldAccents(i.name).trim() === foldAccents(name).trim());
 
 export const toggleShoppingItem = (id) =>
   save(getShoppingList().map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
@@ -55,8 +62,15 @@ export function onShoppingListChange(callback) {
   return () => window.removeEventListener(EVENT, callback);
 }
 
-/** Texto para compartir por WhatsApp. */
+/** Texto para compartir por WhatsApp, agrupado por receta. */
 export function shoppingListText(list) {
   const pending = list.filter((i) => !i.checked);
-  return `🛒 Lista del súper (Kukin)\n${pending.map((i) => `• ${i.name}${i.note ? ` (${i.note})` : ''}`).join('\n')}`;
+  const groups = new Map();
+  for (const i of pending) {
+    const g = i.recipe || '';
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(`• ${i.name}${i.amount ? ` (${i.amount})` : ''}`);
+  }
+  const blocks = [...groups.entries()].map(([recipe, lines]) => `${recipe ? `*${recipe}*\n` : ''}${lines.join('\n')}`);
+  return `🛒 Lista del súper (Kukin)\n\n${blocks.join('\n\n')}`;
 }

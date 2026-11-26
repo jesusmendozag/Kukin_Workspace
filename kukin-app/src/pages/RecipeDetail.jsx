@@ -301,7 +301,8 @@ function RecipeDetail() {
   const addMissingToList = () => {
     addToShoppingList(missingNotInList.map((i) => ({
       name: i.name,
-      note: `${formatAmount(i.amount * scale)} ${i.unit || 'pza'} · ${recipe.title}`,
+      amount: `${formatAmount(i.amount * scale)} ${i.unit || 'pza'}`,
+      recipe: recipe.title,
     })));
   };
 
