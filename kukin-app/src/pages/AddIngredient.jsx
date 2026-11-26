@@ -1,99 +1,132 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { getErrorMessage } from '../services/api';
+
+// Vida útil aproximada (días) para estimar la caducidad cuando el usuario no la captura
+const SHELF_LIFE_BY_NAME = { huevo: 21, cebolla: 21, ajo: 30, papa: 30, jitomate: 10, pollo: 3, 'carne de res': 3 };
+const SHELF_LIFE_BY_CATEGORY = { Verduras: 7, Frutas: 7, Proteínas: 3, Lácteos: 10, Granos: 180 };
+
+const toIsoDate = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const estimateExpiration = (ingredient) => {
+  const days = SHELF_LIFE_BY_NAME[ingredient?.nameEs?.toLowerCase()]
+    ?? SHELF_LIFE_BY_CATEGORY[ingredient?.category]
+    ?? 7;
+  const target = new Date();
+  target.setDate(target.getDate() + days);
+  return toIsoDate(target);
+};
 
 function AddIngredient() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    idIngredient: '3', 
-    quantity: '',
-    idUnit: '1',       
-    expirationDate: ''
-  });
+  const [ingredients, setIngredients] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [formData, setFormData] = useState({ idIngredient: '', quantity: '', idUnit: '', expirationDate: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const [ing, uni] = await Promise.all([api.get('/ingredients'), api.get('/units')]);
+        setIngredients(ing.data.data);
+        setUnits(uni.data.data);
+        setFormData((f) => ({
+          ...f,
+          idIngredient: String(ing.data.data[0]?.idIngredient ?? ''),
+          idUnit: String(uni.data.data[0]?.idUnit ?? ''),
+        }));
+      } catch (err) {
+        setError(getErrorMessage(err));
+      }
+    };
+    loadCatalogs();
+  }, []);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSaving(true);
     try {
-      let expDate = formData.expirationDate;
-      const parsedIdIngredient = parseInt(formData.idIngredient, 10);
-      
-      if (!expDate) {
-        const shelfLife = { 1: 10, 2: 21, 3: 21, 4: 3 };
-        const daysToAdd = shelfLife[parsedIdIngredient] || 7; 
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() + daysToAdd);
-        expDate = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
-      }
-
-      const payload = {
-        idIngredient: parsedIdIngredient,
-        id_ingredient: parsedIdIngredient,
+      const idIngredient = parseInt(formData.idIngredient, 10);
+      const selected = ingredients.find((i) => i.idIngredient === idIngredient);
+      await api.post('/inventory', {
+        idIngredient,
         quantity: parseFloat(formData.quantity),
         idUnit: parseInt(formData.idUnit, 10),
-        id_unit: parseInt(formData.idUnit, 10),
-        expirationDate: expDate,
-        expiration_date: expDate
-      };
-
-      await api.post('/inventory', payload);
+        expirationDate: formData.expirationDate || estimateExpiration(selected),
+      });
       navigate('/dashboard');
-    } catch (error) {
-      const errorMsg = error.response?.data?.details?.[0] || error.response?.data?.message || 'Error de conexión';
-      alert('Error: ' + errorMsg);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
     }
   };
 
+  const fieldClass = 'w-full bg-white text-lg text-gray-900 px-5 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#2D7A47]';
+
   return (
-    <div className="w-full px-6 md:px-12 pt-8 md:pt-4 max-w-2xl mx-auto flex flex-col min-h-[85vh]">
-      <div className="mb-12">
-        <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: "Fraunces, serif" }}>
-          Nuevo Ingrediente
+    <div className="w-full px-6 pt-safe-12 max-w-2xl mx-auto flex flex-col min-h-[85vh] animate-fade-in-up">
+      <div className="mb-12 flex items-center gap-4">
+        <button onClick={() => navigate(-1)} aria-label="Regresar"
+          className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-black shadow-sm active:scale-90 transition-transform">
+          ←
+        </button>
+        <h1 className="text-4xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: "Fraunces, serif" }}>
+          Nuevo ingrediente
         </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 flex-1">
-        
         <div>
-          <label className="text-base font-bold text-gray-900 mb-3 block">Ingrediente</label>
-          <select name="idIngredient" value={formData.idIngredient} onChange={handleChange} required
-            className="w-full bg-white text-lg text-gray-900 px-5 py-4 focus:outline-none cursor-pointer">
-            <option value="1">Jitomate</option>
-            <option value="2">Cebolla</option>
-            <option value="3">Huevo</option>
-            <option value="4">Pollo</option>
+          <label htmlFor="idIngredient" className="text-base font-bold text-gray-900 mb-3 block">Ingrediente</label>
+          <select id="idIngredient" name="idIngredient" value={formData.idIngredient} onChange={handleChange} required
+            disabled={ingredients.length === 0} className={`${fieldClass} cursor-pointer`}>
+            {ingredients.length === 0 && <option value="">Cargando…</option>}
+            {ingredients.map((i) => (
+              <option key={i.idIngredient} value={i.idIngredient}>{i.nameEs}</option>
+            ))}
           </select>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex gap-4">
           <div className="flex-1">
-            <label className="text-base font-bold text-gray-900 mb-3 block">Cantidad</label>
-            <input type="number" step="0.01" min="0.01" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="Ej. 12" required
-              className="w-full bg-white text-lg text-gray-900 px-5 py-4 focus:outline-none placeholder-gray-400" />
+            <label htmlFor="quantity" className="text-base font-bold text-gray-900 mb-3 block">Cantidad</label>
+            <input id="quantity" type="number" inputMode="decimal" step="0.01" min="0.01" name="quantity"
+              value={formData.quantity} onChange={handleChange} placeholder="Ej. 12" required
+              className={`${fieldClass} placeholder-gray-400`} />
           </div>
 
           <div className="flex-1">
-            <label className="text-base font-bold text-gray-900 mb-3 block">Medida</label>
-            <select name="idUnit" value={formData.idUnit} onChange={handleChange} required
-              className="w-full bg-white text-lg text-gray-900 px-5 py-4 focus:outline-none cursor-pointer">
-              <option value="1">Piezas (pza)</option>
-              <option value="2">Gramos (g)</option>
-              <option value="3">Mililitros (ml)</option>
+            <label htmlFor="idUnit" className="text-base font-bold text-gray-900 mb-3 block">Medida</label>
+            <select id="idUnit" name="idUnit" value={formData.idUnit} onChange={handleChange} required
+              disabled={units.length === 0} className={`${fieldClass} cursor-pointer`}>
+              {units.map((u) => (
+                <option key={u.idUnit} value={u.idUnit}>{u.name} ({u.symbol})</option>
+              ))}
             </select>
           </div>
         </div>
 
         <div>
-          <label className="text-base font-bold text-gray-900 mb-3 block">Caducidad</label>
-          <input type="date" name="expirationDate" value={formData.expirationDate} onChange={handleChange}
-            className="w-full bg-white text-lg text-gray-900 px-5 py-4 focus:outline-none" />
-          <p className="text-sm text-gray-500 mt-2">Déjalo en blanco para estimar automáticamente.</p>
+          <label htmlFor="expirationDate" className="text-base font-bold text-gray-900 mb-3 block">Caducidad</label>
+          <input id="expirationDate" type="date" name="expirationDate" value={formData.expirationDate} onChange={handleChange}
+            min={toIsoDate(new Date())} className={fieldClass} />
+          <p className="text-sm text-gray-500 mt-2">Déjalo en blanco para estimarla automáticamente.</p>
         </div>
 
-        <div className="pt-8">
-          <button type="submit" className="w-full py-5 bg-[#2D7A47] text-white font-bold text-lg rounded-full active:scale-95 transition-transform">
-            Guardar
+        {error && (
+          <p role="alert" className="text-sm font-bold text-[#991B1B] bg-[#FEE2E2] px-4 py-3 rounded-2xl">{error}</p>
+        )}
+
+        <div className="pt-4">
+          <button type="submit" disabled={saving || ingredients.length === 0}
+            className="w-full py-5 bg-[#2D7A47] text-white font-bold text-lg rounded-full active:scale-95 transition-transform disabled:opacity-60">
+            {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </form>

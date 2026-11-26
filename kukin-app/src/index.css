@@ -26,3 +26,17 @@ body {
   animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
 }
+/* Áreas seguras del celular (barra de estado, notch y barra de gestos).
+   En el navegador env() vale 0, así que no cambia nada en la versión web. */
+@utility pt-safe-12 { padding-top: calc(env(safe-area-inset-top, 0px) + 3rem); }
+@utility pt-safe-16 { padding-top: calc(env(safe-area-inset-top, 0px) + 4rem); }
+@utility top-safe-8 { top: calc(env(safe-area-inset-top, 0px) + 2rem); }
+@utility pb-safe-10 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2.5rem); }
+@utility pb-safe-32 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8rem); }
+@utility bottom-safe-6 { bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+
+/* Sensación de app nativa: sin resaltado azul al tocar ni rebote al hacer scroll */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}

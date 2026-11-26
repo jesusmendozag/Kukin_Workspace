@@ -24,4 +24,16 @@ public class RecipeController {
         List<RecipeDtos.RecipeSuggestionResponse> response = recipeService.getSuggestions(authentication.getName());
         return ResponseEntity.ok(new ApiResponse<>(response));
     }
+
+    /**
+     * Detalle de una receta. {@code source} indica de dónde viene: OWN (BD propia) o SPOONACULAR.
+     * Así la app nunca necesita la API key de Spoonacular.
+     */
+    @GetMapping("/{idRecipe}")
+    public ResponseEntity<ApiResponse<RecipeDtos.RecipeDetailResponse>> getDetail(
+            @PathVariable Long idRecipe,
+            @RequestParam(defaultValue = RecipeService.SOURCE_OWN) String source,
+            Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(recipeService.getDetail(authentication.getName(), idRecipe, source)));
+    }
 }

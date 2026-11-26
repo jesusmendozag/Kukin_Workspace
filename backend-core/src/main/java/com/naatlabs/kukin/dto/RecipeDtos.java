@@ -25,10 +25,13 @@ public class RecipeDtos {
         private int matchPercentage;
         private List<MissingIngredientDto> missingIngredients;
         private List<String> diets;
+        /** OWN (catálogo propio en la BD) o SPOONACULAR (API externa). */
+        private String source;
 
         public RecipeSuggestionResponse(Long idRecipe, String titleRecipe, Integer timePreparation,
                                         String urlImage, int matchPercentage,
-                                        List<MissingIngredientDto> missingIngredients, List<String> diets) {
+                                        List<MissingIngredientDto> missingIngredients, List<String> diets,
+                                        String source) {
             this.idRecipe = idRecipe;
             this.titleRecipe = titleRecipe;
             this.timePreparation = timePreparation;
@@ -36,6 +39,7 @@ public class RecipeDtos {
             this.matchPercentage = matchPercentage;
             this.missingIngredients = missingIngredients;
             this.diets = diets;
+            this.source = source;
         }
 
         public Long getIdRecipe() { return idRecipe; }
@@ -45,6 +49,7 @@ public class RecipeDtos {
         public int getMatchPercentage() { return matchPercentage; }
         public List<MissingIngredientDto> getMissingIngredients() { return missingIngredients; }
         public List<String> getDiets() { return diets; }
+        public String getSource() { return source; }
     }
 
     public static class RecipeIngredientDetailDto {
@@ -74,19 +79,23 @@ public class RecipeDtos {
         private Long idRecipe;
         private String titleRecipe;
         private String instructions;
+        private List<String> steps;
         private Integer timePreparation;
+        private Integer servings;
         private String urlImage;
         private String source;
         private List<String> diets;
         private List<RecipeIngredientDetailDto> ingredients;
 
-        public RecipeDetailResponse(Long idRecipe, String titleRecipe, String instructions,
-                                    Integer timePreparation, String urlImage, String source,
+        public RecipeDetailResponse(Long idRecipe, String titleRecipe, String instructions, List<String> steps,
+                                    Integer timePreparation, Integer servings, String urlImage, String source,
                                     List<String> diets, List<RecipeIngredientDetailDto> ingredients) {
             this.idRecipe = idRecipe;
             this.titleRecipe = titleRecipe;
             this.instructions = instructions;
+            this.steps = steps;
             this.timePreparation = timePreparation;
+            this.servings = servings;
             this.urlImage = urlImage;
             this.source = source;
             this.diets = diets;
@@ -96,7 +105,9 @@ public class RecipeDtos {
         public Long getIdRecipe() { return idRecipe; }
         public String getTitleRecipe() { return titleRecipe; }
         public String getInstructions() { return instructions; }
+        public List<String> getSteps() { return steps; }
         public Integer getTimePreparation() { return timePreparation; }
+        public Integer getServings() { return servings; }
         public String getUrlImage() { return urlImage; }
         public String getSource() { return source; }
         public List<String> getDiets() { return diets; }

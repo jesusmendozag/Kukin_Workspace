@@ -51,7 +51,9 @@ public class InventoryService {
         if (existingItem.isPresent()) {
             inventory = existingItem.get();
             inventory.setQuantity(inventory.getQuantity().add(request.getQuantity()));
-            inventory.setExpirationDate(request.getExpirationDate()); // Actualiza a la caducidad más reciente
+            if (request.getExpirationDate() != null) {
+                inventory.setExpirationDate(request.getExpirationDate()); // Actualiza a la caducidad más reciente
+            }
         } else {
             inventory = new Inventory();
             inventory.setUser(user);
@@ -88,5 +90,18 @@ public class InventoryService {
                 item.getExpirationDate(),
                 item.getDateRegistration()
         )).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void removeFromInventory(String email, Long idInventory) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new KukinApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado"));
+
+        // Solo el dueño puede borrar su registro; si es de otro usuario se responde 404 (no se revela que existe)
+        Inventory item = inventoryRepository.findById(idInventory)
+                .filter(inv -> inv.getUser().getIdUser().equals(user.getIdUser()))
+                .orElseThrow(() -> new KukinApiException(HttpStatus.NOT_FOUND, "INVENTORY_NOT_FOUND", "El ingrediente no existe en tu inventario"));
+
+        inventoryRepository.delete(item);
     }
 }

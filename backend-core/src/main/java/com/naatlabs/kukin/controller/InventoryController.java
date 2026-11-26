@@ -36,4 +36,11 @@ public class InventoryController {
         List<InventoryDtos.InventoryItemResponse> response = inventoryService.getUserInventory(authentication.getName());
         return ResponseEntity.ok(new ApiResponse<>(response));
     }
+
+    /** Elimina un ingrediente del inventario (por ejemplo, cuando se terminó o se usó en una receta). */
+    @DeleteMapping("/{idInventory}")
+    public ResponseEntity<Void> deleteIngredient(@PathVariable Long idInventory, Authentication authentication) {
+        inventoryService.removeFromInventory(authentication.getName(), idInventory);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kukin</string>
+    <string name="title_activity_main">Kukin</string>
+    <string name="package_name">com.naatlabs.kukin</string>
+    <string name="custom_url_scheme">com.naatlabs.kukin</string>
+</resources>
