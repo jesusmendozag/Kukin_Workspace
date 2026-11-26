@@ -32,7 +32,7 @@ export async function scheduleExpirationReminders(inventory) {
     // Cancela los avisos anteriores antes de programar los nuevos
     const pending = await LocalNotifications.getPending();
     if (pending.notifications.length > 0) {
-      await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
+      await LocalNotifications.cancel({ notifications: pending.notifications.filter((n) => n.id < 990000).map((n) => ({ id: n.id })) });
     }
 
     const now = new Date();
@@ -55,7 +55,8 @@ export async function scheduleExpirationReminders(inventory) {
         return {
           id: Number(item.idInventory),
           title: `${item.ingredientName} caduca ${when}`,
-          body: 'Abre Kukin para ver recetas que lo aprovechen y evitar desperdicio.',
+          body: 'Toca para ver recetas que lo aprovechen antes de que se eche a perder.',
+          extra: { route: '/recipes?f=expiring' },
           schedule: { at, allowWhileIdle: true },
         };
       })

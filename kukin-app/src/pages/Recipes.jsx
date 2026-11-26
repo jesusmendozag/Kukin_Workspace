@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IconClock } from '../components/Icons';
-import { PageTitle, ErrorBox, EmptyState, PotLoader } from '../components/ui';
+import { PageTitle, ErrorBox, EmptyState, PotLoader, OfflineNotice } from '../components/ui';
 import api, { getErrorMessage } from '../services/api';
 import { traducirPalabra } from '../services/translator';
 import { getIngredientMeta } from '../services/ingredients';
+import { DIET_GOALS, getDietGoal } from '../services/dietGoal';
 
 const toCard = (r) => ({
   id: r.idRecipe,
@@ -15,6 +16,13 @@ const toCard = (r) => ({
   match: r.matchPercentage ?? 0, // ?? respeta el 0 %
   diets: (r.diets || []).map(traducirPalabra),
   missing: (r.missingIngredients || []).map((m) => m.ingredientName),
+  expiring: r.expiringIngredients || [],
+  ingredientCount: r.ingredientCount ?? 0,
+  needsOven: !!r.needsOven,
+  calories: r.calories ?? null,
+  protein: r.proteinG ?? null,
+  price: r.pricePerServing ?? null, // centavos de dólar por porción
+  healthScore: r.healthScore ?? null,
 });
 
 /** Badge de coincidencia: alta ≥ 80 (verde), media 40–79 (ámbar), baja (blanco). */
@@ -24,27 +32,37 @@ const matchStyle = (m) => {
   return 'bg-white/90 text-navy';
 };
 
-const FILTERS = [
-  { id: 'all', label: 'Todas' },
-  { id: 'quick', label: 'Rápidas' },
-  { id: 'full', label: 'Al 100%' },
-];
+/** Filtros. Solo se muestran los que tienen al menos una receta. */
+const buildFilters = (goal) => [
+  { id: 'all', label: 'Todas', test: () => true },
+  goal && { id: 'goal', label: `🎯 ${DIET_GOALS[goal].short}`, test: DIET_GOALS[goal].test },
+  { id: 'expiring', label: '⏰ Aprovecha', test: (r) => r.expiring.length > 0 },
+  { id: 'quick', label: 'Rápidas', test: (r) => r.time <= 30 },
+  { id: 'full', label: 'Al 100%', test: (r) => r.match >= 100 },
+  { id: 'cheap', label: 'Económicas', test: (r) => r.price != null && r.price <= 150 },
+  { id: 'nooven', label: 'Sin horno', test: (r) => !r.needsOven },
+  { id: 'few', label: 'Pocos ingredientes', test: (r) => r.ingredientCount > 0 && r.ingredientCount <= 6 },
+].filter(Boolean);
 
 function Recipes() {
   const navigate = useNavigate();
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [searchParams] = useSearchParams();
+  const [filter, setFilter] = useState(() => searchParams.get('f') || 'all');
+  const [goal] = useState(getDietGoal);
   const [reloadKey, setReloadKey] = useState(0);
+  const [offline, setOffline] = useState(false);
 
   // Las sugerencias las calcula el backend con base en la alacena (y trae recetas nuevas ya en español)
   useEffect(() => {
     let cancelled = false;
-    api.get('/recipes/suggestions', { timeout: 60000 })
-      .then(({ data }) => {
+    api.get('/recipes/suggestions', { timeout: 60000, offlineCache: true })
+      .then(({ data, fromCache }) => {
         if (cancelled) return;
         setSuggestions(data.data.map(toCard));
+        setOffline(!!fromCache);
         setError('');
       })
       .catch((err) => !cancelled && setError(getErrorMessage(err)))
@@ -54,8 +72,11 @@ function Recipes() {
 
   const discover = () => { setLoading(true); setError(''); setReloadKey((k) => k + 1); };
 
-  const shown = useMemo(() => suggestions.filter((r) =>
-    filter === 'all' || (filter === 'quick' ? r.time <= 30 : r.match >= 100)), [suggestions, filter]);
+  const filters = useMemo(() => buildFilters(goal)
+    .map((f) => ({ ...f, count: suggestions.filter(f.test).length }))
+    .filter((f) => f.id === 'all' || f.count > 0 || f.id === filter), [goal, suggestions, filter]);
+  const active = filters.find((f) => f.id === filter) || filters[0];
+  const shown = useMemo(() => suggestions.filter(active.test), [suggestions, active]);
 
   return (
     <div className="animate-fade-in-up">
@@ -68,10 +89,10 @@ function Recipes() {
         } />
 
       <div role="group" aria-label="Filtrar recetas" className="flex gap-2 overflow-x-auto scrollbar-hide px-5 pb-5">
-        {FILTERS.map((f) => (
-          <button key={f.id} type="button" onClick={() => setFilter(f.id)} aria-pressed={filter === f.id}
+        {(loading ? filters.slice(0, 1) : filters).map((f) => (
+          <button key={f.id} type="button" onClick={() => setFilter(f.id)} aria-pressed={active.id === f.id}
             className={`shrink-0 min-h-11 px-5 rounded-full font-bold active:scale-95 transition-all ${
-              filter === f.id ? 'bg-navy text-white' : 'bg-white text-navy shadow-sm'}`}>
+              active.id === f.id ? 'bg-navy text-white' : 'bg-white text-navy shadow-sm'}`}>
             {f.label}
           </button>
         ))}
@@ -79,6 +100,7 @@ function Recipes() {
 
       <div className="px-5 space-y-5">
         <ErrorBox message={error} onRetry={discover} />
+        <OfflineNotice show={offline && !loading} />
 
         {loading ? (
           <PotLoader text="Buscando recetas con lo que tienes…" className="py-16" />
@@ -87,7 +109,8 @@ function Recipes() {
             text="Agrega más ingredientes a tu alacena para encontrar recetas que puedas preparar."
             actionLabel="Agregar ingredientes" onAction={() => navigate('/add')} />
         ) : shown.length === 0 && !error ? (
-          <EmptyState emoji="🥄" title="Nada por aquí" text="Prueba con otro filtro." />
+          <EmptyState emoji="🥄" title="Nada por aquí"
+            text={active.id === 'goal' ? 'Aún no hay recetas con datos de nutrición para tu objetivo. Toca «Descubrir» para buscar más.' : 'Prueba con otro filtro.'} />
         ) : (
           <ul className="space-y-5">
             {shown.map((recipe, index) => (
@@ -104,6 +127,11 @@ function Recipes() {
                     <span className={`absolute top-4 right-4 px-3.5 py-1.5 rounded-full font-black text-[0.8rem] tabular backdrop-blur-md ${matchStyle(recipe.match)}`}>
                       {recipe.match}% Coincidencia
                     </span>
+                    {recipe.expiring.length > 0 && (
+                      <span className="absolute left-4 bottom-4 right-4 truncate px-3.5 py-1.5 rounded-full bg-alert text-white font-bold text-[0.85rem] w-fit max-w-[calc(100%-2rem)]">
+                        ⏰ Usa tu {recipe.expiring.slice(0, 2).join(' y ').toLowerCase()} antes de que caduque
+                      </span>
+                    )}
                   </div>
 
                   <div className="p-5">
@@ -125,7 +153,10 @@ function Recipes() {
                     )}
 
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 font-bold text-soft tabular"><IconClock /> {recipe.time} min</span>
+                      <span className="flex items-center gap-3 font-bold text-soft tabular">
+                        <span className="flex items-center gap-1.5"><IconClock /> {recipe.time} min</span>
+                        {recipe.calories != null && <span>🔥 {recipe.calories} kcal</span>}
+                      </span>
                       <span aria-hidden="true"
                         className="w-10 h-10 rounded-full bg-cream flex items-center justify-center text-navy font-black text-xl transition-transform group-active:translate-x-1">
                         →

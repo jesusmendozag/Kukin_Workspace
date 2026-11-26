@@ -27,6 +27,10 @@ public class User {
     @Column(name = "type_plan", nullable = false)
     private PlanType typePlan = PlanType.FREE;
 
+    /** Objetivo elegido en Dietas: lose, muscle, heart, rest (null = ninguno). */
+    @Column(name = "diet_goal", length = 20)
+    private String dietGoal;
+
     @Column(name = "plan_expires_at")
     private Instant planExpiresAt;
 
@@ -52,5 +56,7 @@ public class User {
     public PlanType getTypePlan() { return typePlan; }
     public void setTypePlan(PlanType typePlan) { this.typePlan = typePlan; }
     public Instant getPlanExpiresAt() { return planExpiresAt; }
+    public String getDietGoal() { return dietGoal; }
+    public void setDietGoal(String dietGoal) { this.dietGoal = dietGoal; }
     public void setPlanExpiresAt(Instant planExpiresAt) { this.planExpiresAt = planExpiresAt; }
 }

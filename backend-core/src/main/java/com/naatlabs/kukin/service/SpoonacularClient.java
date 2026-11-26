@@ -55,6 +55,7 @@ public class SpoonacularClient {
                 .queryParam("includeIngredients", String.join(",", ingredientNamesEn))
                 .queryParam("addRecipeInformation", true)
                 .queryParam("fillIngredients", true)
+                .queryParam("addRecipeNutrition", true)
                 .queryParam("ignorePantry", true)
                 .queryParam("sort", "max-used-ingredients")
                 .queryParam("number", number)

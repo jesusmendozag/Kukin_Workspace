@@ -11,5 +11,10 @@ public class CatalogDtos {
 
     public record UnitResponse(Short idUnit, String name, String symbol) {}
 
-    public record UserProfileResponse(Long idUser, String name, String email, String typePlan) {}
+    public record UserProfileResponse(Long idUser, String name, String email, String typePlan, String dietGoal) {}
+
+    /** goal: lose, muscle, heart, rest, o null para quitarlo. */
+    public record DietGoalRequest(
+            @jakarta.validation.constraints.Pattern(regexp = "lose|muscle|heart|rest", message = "Objetivo no válido")
+            String goal) {}
 }

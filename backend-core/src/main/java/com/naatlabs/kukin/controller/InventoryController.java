@@ -37,6 +37,15 @@ public class InventoryController {
         return ResponseEntity.ok(new ApiResponse<>(response));
     }
 
+    /** Cambia cuánto queda; con cantidad 0 se quita de la alacena. */
+    @PatchMapping("/{idInventory}")
+    public ResponseEntity<Void> updateIngredient(@PathVariable Long idInventory,
+                                                 @Valid @RequestBody InventoryDtos.UpdateInventoryRequest request,
+                                                 Authentication authentication) {
+        inventoryService.updateInventory(authentication.getName(), idInventory, request);
+        return ResponseEntity.noContent().build();
+    }
+
     /** Elimina un ingrediente del inventario (por ejemplo, cuando se terminó o se usó en una receta). */
     @DeleteMapping("/{idInventory}")
     public ResponseEntity<Void> deleteIngredient(@PathVariable Long idInventory, Authentication authentication) {

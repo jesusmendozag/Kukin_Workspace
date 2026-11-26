@@ -82,3 +82,13 @@ export function EmptyState({ emoji, title, text, actionLabel, onAction }) {
     </div>
   );
 }
+
+/** Aviso cuando la pantalla muestra lo último guardado porque no hay internet. */
+export function OfflineNotice({ show }) {
+  if (!show) return null;
+  return (
+    <p role="status" className="flex items-center gap-2 rounded-[20px] bg-amber/15 text-navy px-4 py-3 font-bold text-[0.95rem]">
+      <span aria-hidden="true">📴</span> Sin conexión: te mostramos lo último que guardaste.
+    </p>
+  );
+}

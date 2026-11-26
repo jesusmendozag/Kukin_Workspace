@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { TOKEN_KEY, getErrorMessage } from '../services/api';
+import api, { TOKEN_KEY, clearOfflineCache, getErrorMessage } from '../services/api';
 import { cancelAllReminders } from '../services/notifications';
+import { clearShoppingList } from '../services/shoppingList';
 import { IconLogout } from '../components/Icons';
 import { PageTitle, ErrorBox } from '../components/ui';
 
@@ -19,7 +20,10 @@ function Profile() {
 
   const logout = async () => {
     await cancelAllReminders();
+    clearShoppingList();
     localStorage.removeItem(TOKEN_KEY);
+    clearOfflineCache();
+    localStorage.removeItem('kukin-diet-goal');
     navigate('/', { replace: true });
   };
 

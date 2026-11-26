@@ -1,11 +1,14 @@
 package com.naatlabs.kukin.config;
 
 import com.naatlabs.kukin.entity.Ingredient;
+import com.naatlabs.kukin.entity.Inventory;
 import com.naatlabs.kukin.entity.Recipe;
+import com.naatlabs.kukin.entity.RecipeIngredient;
 import com.naatlabs.kukin.repository.IngredientRepository;
 import com.naatlabs.kukin.repository.RecipeRepository;
 import com.naatlabs.kukin.service.IngredientNames;
 import com.naatlabs.kukin.service.TranslationService;
+import com.naatlabs.kukin.service.UnitConverter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
@@ -15,6 +18,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -56,6 +60,7 @@ public class CatalogTranslationBackfill {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @org.springframework.core.annotation.Order(1)
     @Transactional
     public void run() {
         try {
@@ -129,36 +134,54 @@ public class CatalogTranslationBackfill {
                     .thenComparing(Ingredient::getIdIngredient));
             Ingredient keep = group.get(0);
             for (Ingredient dup : group.subList(1, group.size())) {
-                moveReferences(dup.getIdIngredient(), keep.getIdIngredient());
+                moveReferences(dup, keep);
                 merged++;
             }
         }
+        em.flush();
         em.clear();
         return merged;
     }
 
-    /** Pasa recetas y alacenas del ingrediente repetido al que se conserva, y borra el repetido. */
-    private void moveReferences(Long dup, Long keep) {
-        // Alacena: si el usuario tiene ambos con la misma unidad, se suman cantidades
-        em.createNativeQuery("UPDATE inventory k JOIN inventory d ON d.id_user = k.id_user AND d.id_unit = k.id_unit "
-                + "SET k.quantity = k.quantity + d.quantity WHERE k.id_ingredient = :keep AND d.id_ingredient = :dup")
-                .setParameter("keep", keep).setParameter("dup", dup).executeUpdate();
-        // ...y el repetido se quita (la restricción única no permite dos registros del mismo ingrediente)
-        em.createNativeQuery("DELETE d FROM inventory d JOIN inventory k ON k.id_user = d.id_user "
-                + "WHERE d.id_ingredient = :dup AND k.id_ingredient = :keep")
-                .setParameter("keep", keep).setParameter("dup", dup).executeUpdate();
-        em.createNativeQuery("UPDATE inventory SET id_ingredient = :keep WHERE id_ingredient = :dup")
-                .setParameter("keep", keep).setParameter("dup", dup).executeUpdate();
+    /**
+     * Pasa recetas y alacenas del ingrediente repetido al que se conserva, y borra el repetido.
+     * Con JPA (no SQL propio de MySQL) para que funcione igual en MySQL y en la base H2 de las pruebas.
+     */
+    private void moveReferences(Ingredient dup, Ingredient keep) {
+        // Alacena: si el usuario ya tiene el conservado, se suman cantidades (convirtiendo la unidad si se puede)
+        List<Inventory> dupItems = em.createQuery(
+                "SELECT i FROM Inventory i WHERE i.ingredient = :dup", Inventory.class)
+                .setParameter("dup", dup).getResultList();
+        for (Inventory d : dupItems) {
+            Inventory k = em.createQuery(
+                    "SELECT i FROM Inventory i WHERE i.ingredient = :keep AND i.user = :user", Inventory.class)
+                    .setParameter("keep", keep).setParameter("user", d.getUser())
+                    .getResultStream().findFirst().orElse(null);
+            if (k == null) {
+                d.setIngredient(keep);
+                continue;
+            }
+            BigDecimal extra = UnitConverter.convert(d.getQuantity(), d.getUnit().getSymbol(), k.getUnit().getSymbol());
+            if (extra != null) k.setQuantity(k.getQuantity().add(extra));
+            em.remove(d);
+        }
 
-        // Recetas: si la receta ya tiene el conservado, se borra la fila repetida
-        em.createNativeQuery("DELETE d FROM recipe_ingredient d JOIN recipe_ingredient k ON k.id_recipe = d.id_recipe "
-                + "WHERE d.id_ingredient = :dup AND k.id_ingredient = :keep")
-                .setParameter("keep", keep).setParameter("dup", dup).executeUpdate();
-        em.createNativeQuery("UPDATE recipe_ingredient SET id_ingredient = :keep WHERE id_ingredient = :dup")
-                .setParameter("keep", keep).setParameter("dup", dup).executeUpdate();
-
-        em.createNativeQuery("DELETE FROM ingredient WHERE id_ingredient = :dup")
-                .setParameter("dup", dup).executeUpdate();
+        // Recetas: si la receta ya tiene el conservado, se quita la fila repetida; si no, se cambia de ingrediente
+        List<RecipeIngredient> dupDetails = em.createQuery(
+                "SELECT ri FROM RecipeIngredient ri WHERE ri.ingredient = :dup", RecipeIngredient.class)
+                .setParameter("dup", dup).getResultList();
+        for (RecipeIngredient d : dupDetails) {
+            long already = em.createQuery(
+                    "SELECT COUNT(ri) FROM RecipeIngredient ri WHERE ri.recipe = :recipe AND ri.ingredient = :keep", Long.class)
+                    .setParameter("recipe", d.getRecipe()).setParameter("keep", keep).getSingleResult();
+            if (already > 0) {
+                d.getRecipe().getIngredients().remove(d); // orphanRemoval la borra
+            } else {
+                d.setIngredient(keep);
+            }
+        }
+        em.flush();
+        em.remove(dup);
     }
 
     private static String lower(String s) {

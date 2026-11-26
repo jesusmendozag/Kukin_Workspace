@@ -94,14 +94,31 @@ public class InventoryService {
 
     @Transactional
     public void removeFromInventory(String email, Long idInventory) {
+        inventoryRepository.delete(findOwned(email, idInventory));
+    }
+
+    /**
+     * Actualiza cuánto queda de un ingrediente (al editarlo o después de cocinar).
+     * Si la cantidad llega a 0 se quita de la alacena.
+     */
+    @Transactional
+    public void updateInventory(String email, Long idInventory, InventoryDtos.UpdateInventoryRequest request) {
+        Inventory item = findOwned(email, idInventory);
+        if (request.getQuantity().signum() <= 0) {
+            inventoryRepository.delete(item);
+            return;
+        }
+        item.setQuantity(request.getQuantity());
+        if (request.getExpirationDate() != null) item.setExpirationDate(request.getExpirationDate());
+        inventoryRepository.save(item);
+    }
+
+    /** Solo el dueño puede tocar su registro; si es de otro usuario se responde 404 (no se revela que existe). */
+    private Inventory findOwned(String email, Long idInventory) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new KukinApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado"));
-
-        // Solo el dueño puede borrar su registro; si es de otro usuario se responde 404 (no se revela que existe)
-        Inventory item = inventoryRepository.findById(idInventory)
+        return inventoryRepository.findById(idInventory)
                 .filter(inv -> inv.getUser().getIdUser().equals(user.getIdUser()))
                 .orElseThrow(() -> new KukinApiException(HttpStatus.NOT_FOUND, "INVENTORY_NOT_FOUND", "El ingrediente no existe en tu inventario"));
-
-        inventoryRepository.delete(item);
     }
 }

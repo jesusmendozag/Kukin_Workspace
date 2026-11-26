@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { IconFire, IconDumbbell, IconHeart, IconMoon, IconCheck } from '../components/Icons';
-import { PageTitle } from '../components/ui';
+import { PageTitle, ErrorBox } from '../components/ui';
+import { getDietGoal, saveDietGoal, syncDietGoal } from '../services/dietGoal';
+import { getErrorMessage } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const dietGoals = [
   { id: 'lose', title: 'Bajar de peso', desc: 'Plan hipocalórico con alimentos saciantes', Icon: IconFire, color: '#C2410C', bg: '#FFF3E0', kcal: '1,400 kcal' },
@@ -9,22 +12,47 @@ const dietGoals = [
   { id: 'rest', title: 'Descanso y bienestar', desc: 'Magnesio y triptófano naturales', Icon: IconMoon, color: '#4527A0', bg: '#EDE7F6', kcal: '1,800 kcal' },
 ];
 
-const STORAGE_KEY = 'kukin-diet-goal';
-
 function Diets() {
-  // El objetivo elegido se guarda en el dispositivo
-  const [active, setActive] = useState(() => localStorage.getItem(STORAGE_KEY));
+  const navigate = useNavigate();
+  // El objetivo se guarda en la cuenta; la copia del celular se muestra al instante
+  const [active, setActive] = useState(getDietGoal);
+  const [error, setError] = useState('');
 
-  const toggle = (id) => {
+  useEffect(() => {
+    let cancelled = false;
+    syncDietGoal().then((g) => !cancelled && setActive(g));
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggle = async (id) => {
+    const previous = active;
     const next = active === id ? null : id;
-    if (next) localStorage.setItem(STORAGE_KEY, next);
-    else localStorage.removeItem(STORAGE_KEY);
     setActive(next);
+    setError('');
+    try {
+      await saveDietGoal(next);
+    } catch (err) {
+      setActive(previous);
+      saveDietGoal(previous).catch(() => {});
+      setError(getErrorMessage(err));
+    }
   };
 
   return (
     <div className="animate-fade-in-up">
       <PageTitle title="Dietas" subtitle="Elige tu objetivo" />
+
+      <div className="px-5 mb-4 empty:hidden">
+        {error && <ErrorBox message={error} />}
+        {active && !error && (
+          <button type="button" onClick={() => navigate('/recipes?f=goal')}
+            className="w-full bg-fresh-bg text-fresh rounded-[24px] p-4 flex items-center gap-3 text-left font-bold active:scale-95 transition-transform">
+            <span className="text-2xl" aria-hidden="true">🎯</span>
+            <span className="flex-1">Ver recetas para tu objetivo</span>
+            <span aria-hidden="true" className="text-2xl font-black">›</span>
+          </button>
+        )}
+      </div>
 
       <ul className="px-5 space-y-4">
         {dietGoals.map(({ id, title, desc, Icon, color, bg, kcal }, index) => {

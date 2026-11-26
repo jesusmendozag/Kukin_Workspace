@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import AddIngredient from './pages/AddIngredient';
@@ -10,6 +11,7 @@ import Recipes from './pages/Recipes';
 import RecipeDetail from './pages/RecipeDetail';
 import Diets from './pages/Diets';
 import Profile from './pages/Profile';
+import ShoppingList from './pages/ShoppingList';
 import Layout from './components/Layout';
 import { TOKEN_KEY } from './services/api';
 
@@ -53,6 +55,18 @@ function NativeIntegration() {
     };
   }, [location.pathname, navigate]);
 
+  // Al tocar un aviso (ej. "El cilantro caduca mañana") se abre la pantalla que trae en `extra.route`
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    const listener = LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
+      const route = notification?.extra?.route;
+      if (route && isLoggedIn()) navigate(route);
+    });
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, [navigate]);
+
   return null;
 }
 
@@ -66,6 +80,7 @@ function App() {
         {/* Pantallas con menú de navegación inferior */}
         <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
         <Route path="/add" element={<Protected withLayout={false}><AddIngredient /></Protected>} />
+        <Route path="/shopping" element={<Protected withLayout={false}><ShoppingList /></Protected>} />
         <Route path="/recipes" element={<Protected><Recipes /></Protected>} />
         <Route path="/diets" element={<Protected><Diets /></Protected>} />
         <Route path="/profile" element={<Protected><Profile /></Protected>} />

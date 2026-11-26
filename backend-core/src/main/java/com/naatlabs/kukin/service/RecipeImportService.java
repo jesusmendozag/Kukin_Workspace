@@ -80,7 +80,10 @@ public class RecipeImportService {
         List<JsonNode> fresh = new ArrayList<>();
         for (JsonNode r : iterable(results)) {
             Optional<Recipe> existing = recipeRepository.findByExternalId(r.path("id").asText());
-            if (existing.isPresent()) out.add(existing.get());
+            if (existing.isPresent()) {
+                applyNutrition(existing.get(), r);
+                out.add(existing.get());
+            }
             else fresh.add(r);
         }
         if (fresh.isEmpty()) return out;
@@ -107,6 +110,7 @@ public class RecipeImportService {
             recipe.setUrlImage(truncate(r.path("image").asText(null), 255));
             recipe.setTimePreparation(r.path("readyInMinutes").asInt(30));
             if (r.hasNonNull("servings")) recipe.setServings(r.path("servings").asInt());
+            applyNutrition(recipe, r);
 
             // 3) Pasos de esta receta en una petición (un paso por renglón)
             List<String> stepsEn = new ArrayList<>();
@@ -251,5 +255,16 @@ public class RecipeImportService {
 
     private static Iterable<JsonNode> iterable(JsonNode node) {
         return () -> StreamSupport.stream(node.spliterator(), false).iterator();
+    }
+
+    /** Calorías y proteína por porción, precio por porción y puntaje de salud (si Spoonacular los mandó). */
+    private static void applyNutrition(Recipe recipe, JsonNode r) {
+        for (JsonNode n : iterable(r.path("nutrition").path("nutrients"))) {
+            String name = n.path("name").asText("");
+            if ("Calories".equalsIgnoreCase(name)) recipe.setCalories((int) Math.round(n.path("amount").asDouble()));
+            if ("Protein".equalsIgnoreCase(name)) recipe.setProteinG((int) Math.round(n.path("amount").asDouble()));
+        }
+        if (r.hasNonNull("pricePerServing")) recipe.setPricePerServing((int) Math.round(r.path("pricePerServing").asDouble()));
+        if (r.hasNonNull("healthScore")) recipe.setHealthScore((int) Math.round(r.path("healthScore").asDouble()));
     }
 }

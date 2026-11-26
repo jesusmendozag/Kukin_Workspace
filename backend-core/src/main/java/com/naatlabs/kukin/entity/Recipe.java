@@ -33,6 +33,19 @@ public class Recipe {
     @Column(name = "servings")
     private Integer servings;
 
+    /** Por porción, de Spoonacular: kcal, gramos de proteína, centavos de dólar y puntaje de salud (0-100). */
+    @Column(name = "calories")
+    private Integer calories;
+
+    @Column(name = "protein_g")
+    private Integer proteinG;
+
+    @Column(name = "price_per_serving")
+    private Integer pricePerServing;
+
+    @Column(name = "health_score")
+    private Integer healthScore;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SourceType source = SourceType.OWN;
@@ -61,6 +74,14 @@ public class Recipe {
     public void setTimePreparation(Integer timePreparation) { this.timePreparation = timePreparation; }
     public Integer getServings() { return servings; }
     public void setServings(Integer servings) { this.servings = servings; }
+    public Integer getCalories() { return calories; }
+    public void setCalories(Integer calories) { this.calories = calories; }
+    public Integer getProteinG() { return proteinG; }
+    public void setProteinG(Integer proteinG) { this.proteinG = proteinG; }
+    public Integer getPricePerServing() { return pricePerServing; }
+    public void setPricePerServing(Integer pricePerServing) { this.pricePerServing = pricePerServing; }
+    public Integer getHealthScore() { return healthScore; }
+    public void setHealthScore(Integer healthScore) { this.healthScore = healthScore; }
     public String getUrlImage() { return urlImage; }
     public void setUrlImage(String urlImage) { this.urlImage = urlImage; }
     public SourceType getSource() { return source; }

@@ -50,6 +50,34 @@ public class RecipeDtos {
         public List<MissingIngredientDto> getMissingIngredients() { return missingIngredients; }
         public List<String> getDiets() { return diets; }
         public String getSource() { return source; }
+
+        // Datos para los filtros de la app
+        /** Ingredientes del usuario que caducan pronto y que esta receta aprovecha. */
+        private List<String> expiringIngredients = List.of();
+        private int ingredientCount;
+        private boolean needsOven;
+        private Integer calories;
+        private Integer proteinG;
+        private Integer pricePerServing;
+        private Integer healthScore;
+
+        public Integer getCalories() { return calories; }
+        public Integer getProteinG() { return proteinG; }
+        public Integer getPricePerServing() { return pricePerServing; }
+        public Integer getHealthScore() { return healthScore; }
+        public void setNutrition(Integer calories, Integer proteinG, Integer pricePerServing, Integer healthScore) {
+            this.calories = calories;
+            this.proteinG = proteinG;
+            this.pricePerServing = pricePerServing;
+            this.healthScore = healthScore;
+        }
+
+        public List<String> getExpiringIngredients() { return expiringIngredients; }
+        public void setExpiringIngredients(List<String> expiringIngredients) { this.expiringIngredients = expiringIngredients; }
+        public int getIngredientCount() { return ingredientCount; }
+        public void setIngredientCount(int ingredientCount) { this.ingredientCount = ingredientCount; }
+        public boolean isNeedsOven() { return needsOven; }
+        public void setNeedsOven(boolean needsOven) { this.needsOven = needsOven; }
     }
 
     public static class RecipeIngredientDetailDto {
@@ -58,6 +86,13 @@ public class RecipeDtos {
         private BigDecimal amount;
         private String unitSymbol;
         private boolean inUserInventory;
+        // Lo que el usuario tiene en su alacena (null si no lo tiene)
+        private Long idInventory;
+        private BigDecimal inventoryQuantity;
+        private Short inventoryIdUnit;
+        private String inventoryUnitSymbol;
+        /** Cantidad que usa la receta, expresada en la unidad de la alacena (null si no se puede convertir). */
+        private BigDecimal amountInInventoryUnit;
 
         public RecipeIngredientDetailDto(Long idIngredient, String ingredientName,
                                          BigDecimal amount, String unitSymbol, boolean inUserInventory) {
@@ -67,6 +102,20 @@ public class RecipeDtos {
             this.unitSymbol = unitSymbol;
             this.inUserInventory = inUserInventory;
         }
+
+        public void setPantry(Long idInventory, BigDecimal quantity, Short idUnit, String unitSymbol, BigDecimal amountInUnit) {
+            this.idInventory = idInventory;
+            this.inventoryQuantity = quantity;
+            this.inventoryIdUnit = idUnit;
+            this.inventoryUnitSymbol = unitSymbol;
+            this.amountInInventoryUnit = amountInUnit;
+        }
+
+        public Long getIdInventory() { return idInventory; }
+        public BigDecimal getInventoryQuantity() { return inventoryQuantity; }
+        public Short getInventoryIdUnit() { return inventoryIdUnit; }
+        public String getInventoryUnitSymbol() { return inventoryUnitSymbol; }
+        public BigDecimal getAmountInInventoryUnit() { return amountInInventoryUnit; }
 
         public Long getIdIngredient() { return idIngredient; }
         public String getIngredientName() { return ingredientName; }

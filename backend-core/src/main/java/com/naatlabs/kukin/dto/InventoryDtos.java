@@ -31,6 +31,20 @@ public class InventoryDtos {
         public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
     }
 
+    /** Cambiar cuánto queda (0 = se terminó y se quita de la alacena) y, opcionalmente, la caducidad. */
+    public static class UpdateInventoryRequest {
+        @NotNull(message = "quantity es obligatoria")
+        @DecimalMin(value = "0", message = "La cantidad no puede ser negativa")
+        private BigDecimal quantity;
+
+        private LocalDate expirationDate;
+
+        public BigDecimal getQuantity() { return quantity; }
+        public void setQuantity(BigDecimal quantity) { this.quantity = quantity; }
+        public LocalDate getExpirationDate() { return expirationDate; }
+        public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
+    }
+
     public static class InventoryCreatedResponse {
         private Long idInventory;
         private Long idIngredient;

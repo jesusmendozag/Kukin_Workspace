@@ -49,18 +49,55 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/*
+ * Sin internet: las consultas marcadas con `offlineCache: true` guardan su última respuesta en el celular.
+ * Si después no hay conexión, se regresa esa copia con `fromCache: true` para avisar en pantalla.
+ */
+const CACHE_PREFIX = 'kukin-cache:';
+const CACHE_INDEX = 'kukin-cache-index';
+const MAX_CACHED = 30;
+const cacheKey = (config) => `${CACHE_PREFIX}${config.url}?${new URLSearchParams(config.params || {}).toString()}`;
+
+const writeCache = (key, data) => {
+  try {
+    const index = JSON.parse(localStorage.getItem(CACHE_INDEX) || '[]').filter((k) => k !== key);
+    index.push(key);
+    while (index.length > MAX_CACHED) localStorage.removeItem(index.shift());
+    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(CACHE_INDEX, JSON.stringify(index));
+  } catch {
+    // Si el almacenamiento está lleno, simplemente no se guarda
+  }
+};
+
+/** Borra las copias guardadas (al cerrar sesión, para que otra cuenta no vea datos ajenos). */
+export const clearOfflineCache = () => {
+  try {
+    JSON.parse(localStorage.getItem(CACHE_INDEX) || '[]').forEach((k) => localStorage.removeItem(k));
+    localStorage.removeItem(CACHE_INDEX);
+  } catch {
+    // sin acción
+  }
+};
+
 // Al regresar: convierte a camelCase y, si la sesión expiró, regresa al login
 api.interceptors.response.use(
   (response) => {
     response.data = convertKeys(response.data, toCamel);
+    if (response.config.offlineCache) writeCache(cacheKey(response.config), response.data);
     return response;
   },
   (error) => {
+    if (!error.response && error.config?.offlineCache) {
+      const cached = localStorage.getItem(cacheKey(error.config));
+      if (cached) return Promise.resolve({ data: JSON.parse(cached), fromCache: true, config: error.config });
+    }
     if (error.response) {
       error.response.data = convertKeys(error.response.data, toCamel);
       const isAuthCall = error.config?.url?.startsWith('/auth/');
       if (error.response.status === 401 && !isAuthCall) {
         localStorage.removeItem(TOKEN_KEY);
+        clearOfflineCache();
         window.location.replace('/');
       }
     }

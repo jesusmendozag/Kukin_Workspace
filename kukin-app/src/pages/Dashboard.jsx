@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import api, { getErrorMessage } from '../services/api';
 import { daysUntil, scheduleExpirationReminders } from '../services/notifications';
 import { getIngredientMeta } from '../services/ingredients';
-import { IconPlus, IconClose } from '../components/Icons';
-import { PageTitle, ErrorBox, EmptyState, Floating } from '../components/ui';
+import { IconPlus, IconClose, IconCart, IconEdit } from '../components/Icons';
+import { getShoppingList, onShoppingListChange } from '../services/shoppingList';
+import { PageTitle, ErrorBox, EmptyState, Floating, OfflineNotice } from '../components/ui';
 
 /** Fresco (> 3 días) o alerta (≤ 3 días o caducado). */
 const getStatus = (dateString) => {
@@ -18,6 +19,84 @@ const getStatus = (dateString) => {
 
 const formatQty = (q) => Number(q).toLocaleString('es-MX', { maximumFractionDigits: 2 });
 
+const toIsoDate = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+// De 50 en 50 para gramos/mililitros, de cuarto en cuarto para kilos/litros, de 1 en 1 para piezas
+const stepFor = (unit) => {
+  const u = (unit || '').toLowerCase();
+  if (u === 'g' || u === 'ml') return 50;
+  if (u === 'kg' || u === 'l' || u === 'lb') return 0.25;
+  return 1;
+};
+
+/** Hoja para cambiar cuánto queda y la caducidad de un ingrediente. */
+function EditSheet({ item, onClose, onSaved }) {
+  const meta = getIngredientMeta(item.ingredientName, item.category);
+  const [quantity, setQuantity] = useState(Number(item.quantity));
+  const [date, setDate] = useState(item.expirationDate || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const step = stepFor(item.unitSymbol);
+
+  const save = async (qty = quantity) => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch(`/inventory/${item.idInventory}`, { quantity: qty, expirationDate: date || null });
+      onSaved({ ...item, quantity: qty, expirationDate: date || item.expirationDate });
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+      <button type="button" className="absolute inset-0 bg-navy/45 animate-fade-in-up [animation-duration:0.2s]" aria-label="Cerrar" onClick={onClose} />
+      <div className="sheet-up relative w-full bg-cream rounded-t-[40px] px-5 pt-3 pb-[calc(var(--safe-bottom)+1.25rem)]">
+        <div className="mx-auto w-12 h-1.5 rounded-full bg-hairline mb-5" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          <span className="w-14 h-14 rounded-[16px] flex items-center justify-center text-[2rem]" style={{ background: meta.bg }} aria-hidden="true">{meta.emoji}</span>
+          <h2 id="edit-title" className="font-display font-black text-navy text-[1.7rem] leading-tight">{item.ingredientName}</h2>
+        </div>
+
+        <p className="label-micro mt-6 mb-1.5">¿Cuánto te queda?</p>
+        <div className="flex items-center justify-between rounded-[24px] bg-white shadow-sm p-1.5">
+          <button type="button" onClick={() => setQuantity((q) => Math.max(0, Math.round((q - step) * 100) / 100))}
+            aria-label="Menos" className="w-14 h-14 rounded-[18px] bg-cream text-3xl font-black text-basil active:scale-90 transition-transform">−</button>
+          <label className="flex items-baseline gap-1.5">
+            <span className="sr-only">Cantidad</span>
+            <input type="number" inputMode="decimal" min="0" step="any" value={quantity}
+              onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-24 text-center text-[1.6rem] font-black tabular bg-transparent focus:outline-none" />
+            <span className="font-bold text-soft">{item.unitSymbol}</span>
+          </label>
+          <button type="button" onClick={() => setQuantity((q) => Math.round((Number(q) + step) * 100) / 100)}
+            aria-label="Más" className="w-14 h-14 rounded-[18px] bg-cream text-3xl font-black text-basil active:scale-90 transition-transform">+</button>
+        </div>
+
+        <p className="label-micro mt-5 mb-1.5">Caducidad</p>
+        <input type="date" value={date} min={toIsoDate(new Date())} onChange={(e) => setDate(e.target.value)}
+          aria-label={`Caducidad de ${item.ingredientName}`} className="field" />
+
+        {error && <div className="mt-4"><ErrorBox message={error} /></div>}
+
+        <div className="mt-6 grid grid-cols-[auto_1fr] gap-3">
+          <button type="button" onClick={() => save(0)} disabled={saving}
+            className="min-h-14 px-5 rounded-full bg-alert-bg text-alert font-bold active:scale-95 transition-transform disabled:opacity-60">
+            Se acabó
+          </button>
+          <button type="button" onClick={() => save()} disabled={saving || !(Number(quantity) >= 0) || quantity === ''}
+            className="min-h-14 rounded-full bg-navy text-white font-bold text-[1.06rem] active:scale-95 transition-transform disabled:opacity-60">
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
@@ -27,15 +106,21 @@ function Dashboard() {
   const [confirmId, setConfirmId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [reloadKey, setReloadKey] = useState(0);
+  const [editing, setEditing] = useState(null);
+  const [offline, setOffline] = useState(false);
+  const [listCount, setListCount] = useState(() => getShoppingList().filter((i) => !i.checked).length);
+
+  useEffect(() => onShoppingListChange(() => setListCount(getShoppingList().filter((i) => !i.checked).length)), []);
 
   useEffect(() => {
     let cancelled = false;
-    api.get('/inventory')
-      .then(({ data }) => {
+    api.get('/inventory', { offlineCache: true })
+      .then(({ data, fromCache }) => {
         if (cancelled) return;
         setInventory(data.data);
+        setOffline(!!fromCache);
         setError('');
-        scheduleExpirationReminders(data.data);
+        if (!fromCache) scheduleExpirationReminders(data.data);
       })
       .catch((err) => !cancelled && setError(getErrorMessage(err)))
       .finally(() => !cancelled && setLoading(false));
@@ -68,13 +153,34 @@ function Dashboard() {
     }
   };
 
+  const handleSaved = (updated) => {
+    setEditing(null);
+    const next = Number(updated.quantity) <= 0
+      ? inventory.filter((i) => i.idInventory !== updated.idInventory)
+      : inventory.map((i) => (i.idInventory === updated.idInventory ? updated : i));
+    setInventory(next);
+    scheduleExpirationReminders(next);
+  };
+
   return (
     <div className="animate-fade-in-up">
       <PageTitle title="Mi inventario"
-        subtitle={loading ? 'Revisando tu alacena…' : `${items.length} ${items.length === 1 ? 'ingrediente' : 'ingredientes'} guardados`} />
+        subtitle={loading ? 'Revisando tu alacena…' : `${items.length} ${items.length === 1 ? 'ingrediente' : 'ingredientes'} guardados`}
+        action={
+          <button type="button" onClick={() => navigate('/shopping')} aria-label={`Lista del súper${listCount ? `, ${listCount} pendientes` : ''}`}
+            className="relative w-12 h-12 rounded-full bg-white shadow-sm text-navy flex items-center justify-center active:scale-90 transition-transform">
+            <IconCart className="w-6 h-6" />
+            {listCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-basil text-white text-[0.75rem] font-black tabular flex items-center justify-center border-2 border-cream">
+                {listCount}
+              </span>
+            )}
+          </button>
+        } />
 
       <div className="px-5 space-y-5">
         <ErrorBox message={error} onRetry={retry} />
+        <OfflineNotice show={offline} />
 
         {/* Para ti: recetas que ya se pueden cocinar */}
         {!loading && items.length > 0 && (
@@ -124,7 +230,7 @@ function Dashboard() {
                   className="relative bg-white rounded-[24px] shadow-sm min-h-[150px] overflow-hidden animate-fade-in-up"
                   style={{ animationDelay: `${index * 50}ms` }}>
                   {/* Esquina con el emoji sobre su color pastel */}
-                  <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-[24px] flex items-center justify-center text-[2rem]"
+                  <div className="pointer-events-none absolute top-0 right-0 w-16 h-16 rounded-bl-[24px] flex items-center justify-center text-[2rem]"
                     style={{ background: meta.bg }} aria-hidden="true">
                     {meta.emoji}
                   </div>
@@ -143,27 +249,38 @@ function Dashboard() {
                     </div>
                   ) : (
                     <button type="button" onClick={() => setConfirmId(item.idInventory)} aria-label={`Quitar ${item.ingredientName}`}
-                      className="absolute top-1 left-1 w-11 h-11 flex items-center justify-center active:scale-90 transition-transform">
+                      className="absolute top-1 left-1 z-[5] w-11 h-11 flex items-center justify-center active:scale-90 transition-transform">
                       <span className="w-8 h-8 bg-white text-red-500 border border-red-100 rounded-full shadow-md flex items-center justify-center">
                         <IconClose className="w-4 h-4" />
                       </span>
                     </button>
                   )}
 
-                  <div className="pt-16 px-4 pb-4">
+                  {/* Tocar la tarjeta abre la edición de cantidad y caducidad */}
+                  <button type="button" onClick={() => setEditing(item)} aria-label={`Editar ${item.ingredientName}`}
+                    className="block w-full text-left pt-16 px-4 pb-4 active:scale-[0.97] transition-transform">
                     <h3 className="font-display font-black text-navy text-[1.3rem] leading-tight">{item.ingredientName}</h3>
-                    <p className="font-bold text-soft tabular">{formatQty(item.quantity)} {item.unitSymbol}</p>
+                    <p className="font-bold text-soft tabular flex items-center gap-1.5">
+                      {formatQty(item.quantity)} {item.unitSymbol}
+                      <IconEdit className="w-4 h-4 text-soft/70" />
+                    </p>
                     <span className={`mt-2 inline-block rounded-full px-3 py-1 text-[0.8rem] font-black ${
                       item.status.alert ? 'bg-alert-bg text-alert' : 'bg-fresh-bg text-fresh'}`}>
                       {item.status.text}
                     </span>
-                  </div>
+                  </button>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      {editing && (
+        <Floating>
+          <EditSheet item={editing} onClose={() => setEditing(null)} onSaved={handleSaved} />
+        </Floating>
+      )}
 
       {(loading || items.length > 0) && (
         <Floating>

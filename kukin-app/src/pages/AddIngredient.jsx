@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api, { getErrorMessage } from '../services/api';
 import { getIngredientMeta, getIngredientGroup, COMMON_INGREDIENTS, CATEGORIES, foldAccents } from '../services/ingredients';
 import { IconSearch, IconClose, IconCheck, IconPlus } from '../components/Icons';
@@ -83,6 +83,8 @@ function PickCard({ ingredient, selected, owned, onToggle }) {
 
 function AddIngredient() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const preselectRef = useRef(location.state?.preselect ?? null);
   const [ingredients, setIngredients] = useState([]);
   const [units, setUnits] = useState([]);
   const [owned, setOwned] = useState({}); // idIngredient -> registro de la alacena
@@ -102,9 +104,30 @@ function AddIngredient() {
       .then(([ing, uni, inv]) => {
         if (cancelled) return;
         const ownedById = Object.fromEntries(inv.data.data.map((i) => [i.idIngredient, i]));
-        setIngredients(dedupeCatalog(ing.data.data, ownedById));
+        const catalog = dedupeCatalog(ing.data.data, ownedById);
+        setIngredients(catalog);
         setUnits(uni.data.data);
         setOwned(ownedById);
+        // Desde la lista del súper: lo que se compró llega ya elegido
+        const preselect = preselectRef.current;
+        preselectRef.current = null;
+        if (preselect?.length) {
+          const byName = Object.fromEntries(catalog.map((i) => [foldAccents(i.nameEs).trim(), i]));
+          const picked = {};
+          for (const name of preselect) {
+            const found = byName[foldAccents(name).trim()];
+            if (found) {
+              picked[found.idIngredient] = {
+                quantity: 1,
+                idUnit: ownedById[found.idIngredient]?.idUnit ?? pickUnit(found, uni.data.data),
+                expirationDate: '',
+              };
+            }
+          }
+          setSelected((s) => ({ ...picked, ...s }));
+          // Que al volver a esta pantalla no se vuelvan a elegir
+          window.history.replaceState({ ...window.history.state, usr: null }, '');
+        }
         setError('');
       })
       .catch((err) => !cancelled && setError(getErrorMessage(err)))
